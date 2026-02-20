@@ -1,0 +1,37 @@
+spring:
+  # 데이터베이스 연결 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/YOUR_DATABASE_NAME # 데이터베이스 URL (임의의 값)
+    username: YOUR_USERNAME # 데이터베이스 사용자명 (임의의 값)
+    password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
+    driver-class-name: org.postgresql.Driver
+
+  # JPA 및 Hibernate 설정
+  jpa:
+    hibernate:
+      # 개발 단계에서 스키마 자동 업데이트 (생성/기존 유지/변경사항 반영)
+      ddl-auto: update 
+    show-sql: true # 실행되는 SQL을 콘솔에 출력
+    properties:
+      hibernate:
+        format_sql: true # 출력되는 SQL을 보기 좋게 포맷팅
+        highlight_sql: true # SQL 문법 하이라이팅
+        use_sql_comments: true # SQL 내부에 힌트/주석 포함
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  # # Redis 설정 (세션 관리용)
+  # data:
+  #   redis:
+  #     host: localhost
+  #     port: 6379
+
+  # # 세션 저장소로 Redis 사용 설정
+  # session:
+  #   store-type: redis
+
+# 로깅 레벨 설정
+logging:
+  level:
+    org.hibernate.SQL: debug # Hibernate 실행 쿼리 로깅
+    org.hibernate.orm.jdbc.bind: trace # SQL 파라미터 바인딩 값 출력 (Spring Boot 3.x+)
+    org.springframework.security: debug # 스프링 시큐리티 상세 로그
