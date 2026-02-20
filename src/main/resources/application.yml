@@ -1,9 +1,9 @@
 spring:
   # 데이터베이스 연결 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/YOUR_DATABASE_NAME # 데이터베이스 URL (임의의 값)
-    username: YOUR_USERNAME # 데이터베이스 사용자명 (임의의 값)
-    password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
+    url: jdbc:postgresql://localhost:5432/java_test # 데이터베이스 URL (임의의 값)
+    username: kkh # 데이터베이스 사용자명 (임의의 값)
+#    password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
     driver-class-name: org.postgresql.Driver
 
   # JPA 및 Hibernate 설정
