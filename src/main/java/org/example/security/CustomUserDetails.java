@@ -1,6 +1,7 @@
 package org.example.security;
 
 import lombok.Getter;
+import lombok.NonNull;
 import org.example.domain.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -36,6 +37,7 @@ public class CustomUserDetails implements UserDetails {
   }
 
   @Override
+  @NonNull
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return authorities;
   }
@@ -46,27 +48,15 @@ public class CustomUserDetails implements UserDetails {
   }
 
   @Override
-  public String getUsername() {
-    return username;
-  }
-
-  @Override
-  public boolean isAccountNonExpired() {
-    return true; // 기본값 true 설정
-  }
-
-  @Override
   public boolean isAccountNonLocked() {
     return accountNonLocked;
-  }
-
-  @Override
-  public boolean isCredentialsNonExpired() {
-    return true; // 기본값 true 설정
   }
 
   @Override
   public boolean isEnabled() {
     return enabled;
   }
+
+
+
 }
