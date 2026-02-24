@@ -34,6 +34,17 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * JWT 관련 인증(토큰) 예외 처리
+   */
+  @ExceptionHandler(io.jsonwebtoken.JwtException.class)
+  public ResponseEntity<Map<String, String>> handleJwtExceptions(io.jsonwebtoken.JwtException ex) {
+    Map<String, String> errors = new HashMap<>();
+    errors.put("error", "Invalid Token");
+    errors.put("message", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errors);
+  }
+
+  /**
    * 일반적인 예외 처리
    */
   @ExceptionHandler(Exception.class)

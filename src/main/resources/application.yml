@@ -35,3 +35,12 @@ logging:
     org.hibernate.SQL: debug # Hibernate 실행 쿼리 로깅
     org.hibernate.orm.jdbc.bind: trace # SQL 파라미터 바인딩 값 출력 (Spring Boot 3.x+)
     org.springframework.security: debug # 스프링 시큐리티 상세 로그
+
+jwt:
+  # HS256 알고리즘을 위한 32바이트 이상의 임의의 비밀키
+  secret: c2VjcmV0LWtleS1mb3Itc3ByaW5nLWF1dGhvcml6YXRpb24tcHJvamVjdC1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzCg==
+  # Access Token 만료 시간 (1시간 = 3600000ms)
+  access-token-expiration: 3600000
+  # Refresh Token 만료 시간 (7일 = 604800000ms)
+  refresh-token-expiration: 604800000
+

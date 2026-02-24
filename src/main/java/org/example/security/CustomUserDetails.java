@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 @Getter
 public class CustomUserDetails implements UserDetails {
 
+  private final Long id;
   private final String username;
   private final String password;
   private final String nickname;
@@ -24,6 +25,7 @@ public class CustomUserDetails implements UserDetails {
   private final Collection<? extends GrantedAuthority> authorities;
 
   public CustomUserDetails(User user) {
+    this.id = user.getId();
     this.username = user.getUsername();
     this.password = user.getPassword();
     this.nickname = user.getNickname();
