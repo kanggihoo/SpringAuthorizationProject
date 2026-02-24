@@ -37,10 +37,6 @@
 - **URL 권한 제어**: `HttpSecurity` 설정에서 `requestMatchers` 활용.
   - `/admin/**`: `ROLE_ADMIN` 전용.
   - `/user/**`: `ROLE_USER` 이상(ADMIN 포함) 접근 가능.
-- **Role Hierarchy (권한 계층)**:
-  - 애플리케이션 설정에서 `ROLE_ADMIN > ROLE_USER` 계층 정의.
-  - ADMIN 계정으로 로그인 시 별도의 추가 매핑 없이 USER 권한 페이지 접근 보장.
-
 ### 5. Postman 테스트 시나리오
 
 1. **회원가입**: `POST /signup` (JSON 데이터 전송) → DB 저장 확인.
