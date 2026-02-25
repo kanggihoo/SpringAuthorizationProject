@@ -7,6 +7,8 @@ import org.example.security.jwt.ExceptionHandlerFilter;
 import org.example.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,6 +37,14 @@ public class SecurityConfig {
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
+  }
+
+  /**
+   * AuthenticationManager 빈 등록 (Spring Security 7 / Boot 4 방식)
+   */
+  @Bean
+  public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    return configuration.getAuthenticationManager();
   }
 
   /**
