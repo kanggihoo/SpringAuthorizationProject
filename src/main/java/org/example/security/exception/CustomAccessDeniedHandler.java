@@ -39,6 +39,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     errorDetails.put("message", "해당 자원에 접근할 권한이 없습니다.");
     errorDetails.put("path", request.getRequestURI());
 
+    // ObjectMapper로 java 객체를 JSON 직렬화 한 후 PrintWriter 스트림에 작성
     objectMapper.writeValue(response.getWriter(), errorDetails);
   }
 }
