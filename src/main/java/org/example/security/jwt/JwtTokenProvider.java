@@ -73,19 +73,19 @@ public class JwtTokenProvider {
           .build()
           .parseSignedClaims(token);
       return true;
-    } catch (ExpiredJwtException e) {
+    } catch (ExpiredJwtException e) { // JwtException 자식
       log.warn("JWT 토큰이 만료되었습니다. token: {}", token);
       throw e;
-    } catch (MalformedJwtException e) {
+    } catch (MalformedJwtException e) { // JwtException 자식
       log.warn("JWT 토큰 구조가 잘못되었습니다. token: {}", token);
       throw e;
-    } catch (UnsupportedJwtException e) {
+    } catch (UnsupportedJwtException e) { // JwtException 자식
       log.warn("지원하지 않는 JWT 토큰 형식입니다. token: {}", token);
       throw e;
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) { // RuntimeException 자식
       log.warn("JWT 토큰이 비어있거나 잘못된 인자입니다. token: {}", token);
-      throw e;
-    } catch (JwtException e) {
+      throw new JwtException("JWT 토큰이 비어있거나 잘못된 인자입니다.", e);
+    } catch (JwtException e) { // RuntimeException 자식
       log.warn("유효하지 않은 JWT 토큰입니다. token: {}", token);
       throw e;
     }

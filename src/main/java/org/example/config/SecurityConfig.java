@@ -40,7 +40,8 @@ public class SecurityConfig {
   }
 
   /**
-   * AuthenticationManager 빈 등록 (Spring Security 7 / Boot 4 방식)
+   * AuthenticationManager 빈 등록 (Spring Security 7 / Boot 4 방식) => 얘가 왜 이렇게
+   * 해야하는거지??
    */
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {

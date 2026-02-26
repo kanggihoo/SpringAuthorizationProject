@@ -38,6 +38,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     errorDetails.put("message", "인증이 필요하거나 유효하지 않은 토큰입니다.");
     errorDetails.put("path", request.getRequestURI());
 
+    // ObjectMapper로 java 객체를 JSON 직렬화 한 후 PrintWriter 스트림에 작성
     objectMapper.writeValue(response.getWriter(), errorDetails);
   }
 }
