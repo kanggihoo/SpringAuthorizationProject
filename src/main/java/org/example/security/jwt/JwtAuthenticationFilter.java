@@ -7,22 +7,23 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.example.security.CustomUserDetailsService;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenProvider jwtTokenProvider;
+  private final CustomUserDetailsService customUserDetailsService;
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -42,17 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       Claims claims = jwtTokenProvider.parseClaims(token);
       String username = claims.getSubject();
 
-      // 토큰에 담긴 권한 정보 추출
-      @SuppressWarnings("unchecked")
-      List<String> roles = claims.get("roles", List.class);
-      List<SimpleGrantedAuthority> authorities = roles.stream()
-          .map(SimpleGrantedAuthority::new)
-          .collect(Collectors.toList());
+      // UserDetailsService를 통해 DB에서 UserDetails 조회 (JWT Claims 대신 최신 DB 정보 사용)
+      UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
 
-      // DB 조회 없이 SecurityContext에 인증 객체 저장 => 이미 jwt로 자격증명이 끝났으므로 Authentication 객체
-      // 생성 시 credentials는 null
-      UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null,
-          authorities);
+      // SecurityContext에 인증 객체 저장 (principal 자리에 CustomUserDetails 객체를 넣음)
+      UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
+          userDetails.getAuthorities());
 
       SecurityContextHolder.getContext().setAuthentication(authentication);
     }
