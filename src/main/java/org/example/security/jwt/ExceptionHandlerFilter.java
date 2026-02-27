@@ -18,6 +18,7 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
 
   private final HandlerExceptionResolver resolver;
 
+  // 복합 리졸버인 CompositeHandlerExceptionResolver를 주입??
   public ExceptionHandlerFilter(@Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
     this.resolver = resolver;
   }
@@ -29,7 +30,7 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
     } catch (Exception e) {
       log.error("필터 체인 예외 발생. URI: {}, 예외: {}", request.getRequestURI(), e.getMessage());
-      // GlobalExceptionHandler 등 @ControllerAdvice가 처리할 수 있도록 위임
+      // SpringBoot 전역핸들러인 GlobalExceptionHandler 에서 처리할 수 있도록 위임
       resolver.resolveException(request, response, null, e);
     }
   }

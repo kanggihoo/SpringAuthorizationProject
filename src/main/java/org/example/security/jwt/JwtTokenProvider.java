@@ -24,7 +24,7 @@ public class JwtTokenProvider {
       @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
       @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration) {
     byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-    this.key = Keys.hmacShaKeyFor(keyBytes);
+    this.key = Keys.hmacShaKeyFor(keyBytes); // 바이트 배열을 HS256 알고리즘에 사용할 비밀키 생성
     this.accessTokenExpiration = accessTokenExpiration;
     this.refreshTokenExpiration = refreshTokenExpiration;
   }
@@ -35,12 +35,12 @@ public class JwtTokenProvider {
     Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
 
     return Jwts.builder()
-        .subject(username)
-        .claim("roles", roles)
-        .issuedAt(now)
-        .expiration(expiryDate)
-        .signWith(key)
-        .compact();
+        .subject(username) // 토큰의 주체
+        .claim("roles", roles) // 토큰에 담을 정보
+        .issuedAt(now) // 토큰 발급 시간
+        .expiration(expiryDate) // 토큰 만료 시간
+        .signWith(key) // 서명
+        .compact(); // 토큰 생성
   }
 
   // Refresh Token 생성
@@ -49,11 +49,11 @@ public class JwtTokenProvider {
     Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
     return Jwts.builder()
-        .subject(username)
-        .issuedAt(now)
-        .expiration(expiryDate)
-        .signWith(key)
-        .compact();
+        .subject(username) // 토큰의 주체
+        .issuedAt(now) // 토큰 발급 시간
+        .expiration(expiryDate) // 토큰 만료 시간
+        .signWith(key) // 서명
+        .compact(); // 토큰 생성
   }
 
   // JWT 파싱 및 Claims 추출
@@ -68,21 +68,24 @@ public class JwtTokenProvider {
   // 토큰 서명 유효성 검증
   public boolean validateToken(String token) {
     try {
-      Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+      Jwts.parser()
+          .verifyWith(key)
+          .build()
+          .parseSignedClaims(token);
       return true;
-    } catch (ExpiredJwtException e) {
+    } catch (ExpiredJwtException e) { // JwtException 자식
       log.warn("JWT 토큰이 만료되었습니다. token: {}", token);
       throw e;
-    } catch (MalformedJwtException e) {
+    } catch (MalformedJwtException e) { // JwtException 자식
       log.warn("JWT 토큰 구조가 잘못되었습니다. token: {}", token);
       throw e;
-    } catch (UnsupportedJwtException e) {
+    } catch (UnsupportedJwtException e) { // JwtException 자식
       log.warn("지원하지 않는 JWT 토큰 형식입니다. token: {}", token);
       throw e;
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) { // RuntimeException 자식
       log.warn("JWT 토큰이 비어있거나 잘못된 인자입니다. token: {}", token);
-      throw e;
-    } catch (JwtException e) {
+      throw new JwtException("JWT 토큰이 비어있거나 잘못된 인자입니다.", e);
+    } catch (JwtException e) { // RuntimeException 자식
       log.warn("유효하지 않은 JWT 토큰입니다. token: {}", token);
       throw e;
     }
