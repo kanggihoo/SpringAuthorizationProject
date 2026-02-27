@@ -1,7 +1,7 @@
 package org.example.service;
 
-import org.example.dto.LoginRequestDto;
-import org.example.dto.TokenResponseDto;
+import org.example.dto.request.LoginRequestDto;
+import org.example.dto.response.TokenResponseDto;
 
 public interface AuthService {
   TokenResponseDto login(LoginRequestDto requestDto);

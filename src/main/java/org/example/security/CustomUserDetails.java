@@ -1,6 +1,5 @@
 package org.example.security;
 
-import lombok.Getter;
 import org.example.domain.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,7 +12,6 @@ import java.util.stream.Collectors;
  * Spring Security의 UserDetails 구현체
  * 보안 컨텍스트에서 유저 정보를 유지하기 위해 사용됨
  */
-@Getter
 public class CustomUserDetails implements UserDetails {
 
   private final Long id;
@@ -35,6 +33,16 @@ public class CustomUserDetails implements UserDetails {
     this.authorities = user.getRoles().stream()
         .map(role -> new SimpleGrantedAuthority(role.getName()))
         .collect(Collectors.toList());
+  }
+
+  /** 사용자 고유 ID 반환 (JWT 토큰 처리 등에 활용) */
+  public Long getId() {
+    return id;
+  }
+
+  /** 닉네임 반환 */
+  public String getNickname() {
+    return nickname;
   }
 
   @Override

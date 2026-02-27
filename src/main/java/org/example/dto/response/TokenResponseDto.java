@@ -1,4 +1,4 @@
-package org.example.dto;
+package org.example.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -10,7 +10,31 @@ import lombok.Getter;
 public class TokenResponseDto {
   private String accessToken;
   private String tokenType;
+  
 
   @JsonIgnore
+    
+  
+
   private String refreshToken;
+    
+  
 }
+
+    
+  
+    
+  
+      
+      
+    
+
+    
+      
+      
+    
+
+    
+      
+      
+    
