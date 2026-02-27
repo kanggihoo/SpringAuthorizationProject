@@ -266,4 +266,5 @@ out/
 ### VS Code ###
 .vscode/
 
+/agent
 
