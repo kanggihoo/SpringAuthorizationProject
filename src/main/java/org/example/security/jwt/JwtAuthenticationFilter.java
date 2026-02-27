@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -17,7 +16,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -48,7 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
           .map(SimpleGrantedAuthority::new)
           .collect(Collectors.toList());
 
-      // DB 조회 없이 SecurityContext에 인증 객체 저장 (성능 최적화)
+      // DB 조회 없이 SecurityContext에 인증 객체 저장 => 이미 jwt로 자격증명이 끝났으므로 Authentication 객체
+      // 생성 시 credentials는 null
       UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null,
           authorities);
 
