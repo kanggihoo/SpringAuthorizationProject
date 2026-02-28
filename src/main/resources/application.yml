@@ -1,16 +1,21 @@
 spring:
   # 데이터베이스 연결 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/java_test # 데이터베이스 URL (임의의 값)
-    username: kkh # 데이터베이스 사용자명 (임의의 값)
-#    password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
+    # url: jdbc:postgresql://localhost:5432/java_test # 데이터베이스 URL (임의의 값)
+    # username: kkh # 데이터베이스 사용자명 (임의의 값)
+    # password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
+    # driver-class-name: org.postgresql.Driver
+
+    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres # 데이터베이스 URL (임의의 값)
+    username: postgres.kqvuhbjahjlrphagijfv # 데이터베이스 사용자명 (임의의 값)
+    password: RHGXRu55gTQGM444
     driver-class-name: org.postgresql.Driver
 
   # JPA 및 Hibernate 설정
   jpa:
     hibernate:
       # 개발 단계에서 스키마 자동 업데이트 (생성/기존 유지/변경사항 반영)
-      ddl-auto: update 
+      ddl-auto: update
     show-sql: true # 실행되는 SQL을 콘솔에 출력
     properties:
       hibernate:
@@ -43,4 +48,3 @@ jwt:
   access-token-expiration: 3600000
   # Refresh Token 만료 시간 (7일 = 604800000ms)
   refresh-token-expiration: 604800000
-

@@ -1,4 +1,4 @@
-package org.example.dto;
+package org.example.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
