@@ -10,7 +10,31 @@ import lombok.Getter;
 public class TokenResponseDto {
   private String accessToken;
   private String tokenType;
+  
 
   @JsonIgnore
+    
+  
+
   private String refreshToken;
+    
+  
 }
+
+    
+  
+    
+  
+      
+      
+    
+
+    
+      
+      
+    
+
+    
+      
+      
+    
