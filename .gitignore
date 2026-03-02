@@ -270,3 +270,5 @@ out/
 /docs/agent_skills_overview.md
 /docs/available_skills.md
 
+.worktrees/
+.worktrees/
