@@ -71,7 +71,7 @@ public class SecurityConfig {
 
         // 요청 URL별 권한 설정
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/", "/signup", "/login", "/refresh", "/error").permitAll() // 로그인 없이 접근 가능
+            .requestMatchers("/", "/signup", "/login", "/refresh", "/error", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // 로그인 없이 접근 가능
             .requestMatchers("/admin/**").hasRole("ADMIN") // ADMIN 권한 필요
             .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN") // USER 또는 ADMIN 권한 필요
             .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
