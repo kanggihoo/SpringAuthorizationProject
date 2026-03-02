@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'
 }
 
 group = 'org.example'
@@ -34,6 +35,7 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
     implementation 'io.jsonwebtoken:jjwt-impl:0.13.0'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.13.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'org.postgresql:postgresql'
@@ -44,9 +46,28 @@ dependencies {
 //    testImplementation 'org.springframework.boot:spring-boot-starter-session-data-redis-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    checkstyle 'com.puppycrawl.tools:checkstyle:13.3.0'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 }
 
+checkstyle {
+    toolVersion = '13.3.0'
+    configFile = file("${project.projectDir}/config/checkstyle/google_checks.xml")
+    configProperties = [
+        'org.checkstyle.google.severity': 'warning',
+        'org.checkstyle.google.suppressionfilter.config': "${project.projectDir}/config/checkstyle/checkstyle-suppressions.xml",
+        'org.checkstyle.google.suppressionxpathfilter.config': "${project.projectDir}/config/checkstyle/checkstyle-xpath-suppressions.xml"
+    ]
+    ignoreFailures = false
+    maxWarnings = 0
+}
+
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
