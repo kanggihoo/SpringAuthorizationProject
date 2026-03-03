@@ -1,0 +1,361 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Auth API",
+    "version": "1.0.0",
+    "description": "AuthController based authentication API."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints"
+    }
+  ],
+  "paths": {
+    "/signup": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Signup",
+        "operationId": "signup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              },
+              "example": {
+                "username": "testuser",
+                "password": "password123",
+                "nickname": "tester",
+                "role": "ROLE_USER"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signup success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "회원가입이 완료되었습니다."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Business exception",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "이미 존재하는 아이디입니다."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              },
+              "example": {
+                "username": "testuser",
+                "password": "password123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login success",
+            "headers": {
+              "Set-Cookie": {
+                "description": "HttpOnly refresh token cookie",
+                "schema": {
+                  "type": "string",
+                  "example": "Refresh-Token=eyJ...; Max-Age=1209600; Path=/; HttpOnly; Secure"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponseDto"
+                },
+                "example": {
+                  "accessToken": "eyJhbGciOiJIUzI1NiJ9.access.payload",
+                  "tokenType": "Bearer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Auth/business exception",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Bad credentials"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "operationId": "logout",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout success",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Delete refresh token cookie",
+                "schema": {
+                  "type": "string",
+                  "example": "Refresh-Token=; Max-Age=0; Path=/"
+                }
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "로그아웃 되었습니다."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Reissue access token",
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "Refresh-Token",
+            "required": true,
+            "description": "Refresh token cookie",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reissue success",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Rotated refresh token cookie",
+                "schema": {
+                  "type": "string",
+                  "example": "Refresh-Token=eyJ...; Max-Age=1209600; Path=/; HttpOnly; Secure"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/invalid refresh token",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Refresh Token이 존재하지 않습니다."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "JWT validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JwtErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "SignupRequest": {
+        "type": "object",
+        "required": ["username", "password", "nickname"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 20,
+            "example": "testuser"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "password123"
+          },
+          "nickname": {
+            "type": "string",
+            "example": "tester"
+          },
+          "role": {
+            "type": "string",
+            "default": "ROLE_USER",
+            "example": "ROLE_USER"
+          }
+        }
+      },
+      "LoginRequestDto": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "testuser"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          }
+        }
+      },
+      "TokenResponseDto": {
+        "type": "object",
+        "description": "refreshToken is not in JSON body and is delivered only by cookie.",
+        "required": ["accessToken", "tokenType"],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiJ9.access.payload"
+          },
+          "tokenType": {
+            "type": "string",
+            "example": "Bearer"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "example": {
+          "username": "아이디는 필수 입력 값입니다."
+        }
+      },
+      "JwtErrorResponse": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Invalid Token"
+          },
+          "message": {
+            "type": "string",
+            "example": "JWT token validation failed"
+          }
+        }
+      },
+      "SecurityErrorResponse": {
+        "type": "object",
+        "required": ["status", "error", "message", "path"],
+        "properties": {
+          "status": {
+            "type": "integer",
+            "example": 401
+          },
+          "error": {
+            "type": "string",
+            "example": "Unauthorized"
+          },
+          "message": {
+            "type": "string",
+            "example": "인증이 필요하거나 유효하지 않은 토큰입니다."
+          },
+          "path": {
+            "type": "string",
+            "example": "/logout"
+          }
+        }
+      }
+    }
+  }
+}

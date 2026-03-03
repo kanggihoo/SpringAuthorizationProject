@@ -1,0 +1,116 @@
+openapi: 3.0.0
+info:
+  title: Test API
+  version: '1.0.0'
+  description: TestController based endpoint documentation.
+servers:
+  - url: http://localhost:8080
+    description: Local server
+
+tags:
+  - name: Test
+    description: Authorization test endpoints
+
+paths:
+  /:
+    get:
+      tags:
+        - Test
+      summary: Index (public)
+      operationId: index
+      description: Public endpoint. If authenticated, response includes nickname and authorities.
+      responses:
+        '200':
+          description: Success
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 메인 페이지입니다. 로그인이 필요합니다.
+
+  /user/profile:
+    get:
+      tags:
+        - Test
+      summary: User profile (USER or ADMIN)
+      operationId: userProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 회원 프로필 페이지입니다. 반가워요, tester님!
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityErrorResponse'
+
+  /admin/manage:
+    get:
+      tags:
+        - Test
+      summary: Admin manage (ADMIN only)
+      operationId: adminManage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 관리자 전용 페이지입니다.
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SecurityErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - message
+        - path
+      properties:
+        status:
+          type: integer
+          example: 401
+        error:
+          type: string
+          example: Unauthorized
+        message:
+          type: string
+          example: 인증이 필요하거나 유효하지 않은 토큰입니다.
+        path:
+          type: string
+          example: /user/profile
