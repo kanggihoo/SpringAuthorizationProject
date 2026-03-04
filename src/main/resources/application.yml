@@ -6,7 +6,7 @@ spring:
     # password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
     # driver-class-name: org.postgresql.Driver
 
-    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres # 데이터베이스 URL (임의의 값)
+    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:443/postgres # 데이터베이스 URL (임의의 값)
     username: postgres.kqvuhbjahjlrphagijfv # 데이터베이스 사용자명 (임의의 값)
     password: RHGXRu55gTQGM444
     driver-class-name: org.postgresql.Driver
@@ -37,9 +37,9 @@ spring:
 # 로깅 레벨 설정
 logging:
   level:
-    org.hibernate.SQL: debug # Hibernate 실행 쿼리 로깅
+    org.hibernate.SQL: info # Hibernate 실행 쿼리 로깅
     org.hibernate.orm.jdbc.bind: trace # SQL 파라미터 바인딩 값 출력 (Spring Boot 3.x+)
-    org.springframework.security: debug # 스프링 시큐리티 상세 로그
+    org.springframework.security: info # 스프링 시큐리티 상세 로그
 
 jwt:
   # HS256 알고리즘을 위한 32바이트 이상의 임의의 비밀키

@@ -29,7 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getRequestURI();
     // 토큰 검증이 필요 없는 경로 설정
-    return path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/refresh");
+    return path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/refresh") 
+        || path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui");
   }
 
   @Override

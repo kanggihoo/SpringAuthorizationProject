@@ -22,10 +22,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.Optional;
 
+import org.example.controller.docs.AuthApi;
+
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthApi {
 
   private final AuthService authService;
   private final JwtTokenProvider jwtTokenProvider;
