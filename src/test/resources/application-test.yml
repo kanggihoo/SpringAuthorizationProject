@@ -1,0 +1,30 @@
+# ============================================================
+# 테스트 전용 설정 파일
+# - H2 인메모리 DB를 사용하여 운영 DB(PostgreSQL)와 완벽히 격리
+# - 테스트 클래스에 @ActiveProfiles("test")를 부착하면 이 설정이 적용됨
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 테스트 시작 시 스키마 생성, 종료 시 삭제
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Spring Security OAuth2 Client 자동 설정 비활성화 (테스트 시 불필요)
+  security:
+    oauth2:
+      client:
+        registration: {}
+
+logging:
+  level:
+    org.hibernate.SQL: debug

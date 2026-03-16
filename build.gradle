@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco' // 테스트 커버리지 리포트 생성 플러그인
 }
 
 group = 'org.example'
@@ -41,9 +42,21 @@ dependencies {
 //    testImplementation 'org.springframework.boot:spring-boot-starter-session-data-redis-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2' // 테스트 전용 인메모리 DB
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport // 테스트 실행 후 자동으로 커버리지 리포트 생성
+}
+
+// JaCoCo 리포트 설정 - HTML 형태로 build/reports/jacoco/ 에 생성됨
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = false
+        csv.required = false
+        html.required = true
+    }
 }
 

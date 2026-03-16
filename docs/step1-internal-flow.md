@@ -5,6 +5,7 @@
 ---
 
 ## 1. 기본 인증 로직 분석 (Form Login)
+
 표준 폼 로그인 기반으로 사용자가 자격 증명(ID/비밀번호)을 제출했을 때 Spring Security의 내부 처리 루틴은 다음과 같은 단계를 거칩니다.
 
 1. 사용자가 브라우저나 Postman을 통해 `POST /login` (Content-Type: `x-www-form-urlencoded`) 요청을 전송합니다.
@@ -18,17 +19,19 @@
 ## 2. 시나리오별 동작 분석
 
 ### 2.1 인증 성공 시나리오
+
 올바른 자격 증명을 제출하여 정상적으로 Spring Security 인증이 처리되는 구체적인 흐름입니다.
 
 1. **토큰 생성 및 검증 위임**: `UsernamePasswordAuthenticationFilter`가 미인증 `UsernamePasswordAuthenticationToken`을 생성하고, `DaoAuthenticationProvider`까지 흐름이 이어집니다.
 2. **UserDetailsService 연동**: `DaoAuthenticationProvider`는 사용자의 실제 DB 정보를 가져오기 위해 우리가 등록한 **`CustomUserDetailsService.loadUserByUsername(String username)`** 메서드를 호출합니다.
 3. **DB 조회 및 UserDetails 반환**: `CustomUserDetailsService` 내부에서 `UserRepository.findByUsername()`을 실행해 엔티티를 찾습니다. 찾은 `User` 정보를 바탕으로 **`CustomUserDetails`**(UserDetails의 구현체) 객체를 생성하여 반환합니다.
-4. **비밀번호 일치 검사**: `DaoAuthenticationProvider`는 반환받은 `CustomUserDetails`의 해시된 암호와 사용자가 입력한 순수 암호를 **`PasswordEncoder`**(`BCryptPasswordEncoder`)를 사용하여 비교(`matches()` 메서드)합니다. 
+4. **비밀번호 일치 검사**: `DaoAuthenticationProvider`는 반환받은 `CustomUserDetails`의 해시된 암호와 사용자가 입력한 순수 암호를 **`PasswordEncoder`**(`BCryptPasswordEncoder`)를 사용하여 비교(`matches()` 메서드)합니다.
 5. **Authentication 객체 최종 생성**: 비밀번호가 일치하면 인증 성공입니다. 인증이 완료된 원본 `CustomUserDetails`를 통째로 `Principal`에 담고, 유저의 권한 정보 모음(`Authorities`)까지 채워 넣은 완전한 상태의 새로운 **`UsernamePasswordAuthenticationToken`**(최종 인증된 Authentication 객체)을 생성합니다.
 6. **SecurityContext 저장**: 생성된 객체는 **`SecurityContextHolder`**의 `SecurityContext` 내부에 저장(`setAuthentication()`)됩니다. 이후 다른 필터나 컨트롤러(`@AuthenticationPrincipal`)에서 쉽게 꺼내 쓸 수 있습니다.
 7. **성공 핸들러**: 최종적으로 이 요청은 **`AuthenticationSuccessHandler`**를 거쳐 `SecurityConfig`에 정의된 `defaultSuccessUrl("/", true)` 설정에 맞게 지정한 URL(루트 `/`)로 리다이렉트 응답을 반환합니다. 이때 응답으로 **`JSESSIONID`**라는 이름의 세션 쿠키가 발급되며, 브라우저 환경이나 Postman에서 발급된 쿠키를 직접 확인할 수 있습니다.
 
 ### 2.2 인증 실패 시나리오
+
 잘못된 ID나 비밀번호 입력 시 인증이 실패하고 예외 처리 단계로 넘어가는 과정입니다.
 
 1. 일반적인 폼 요청과 동일하게 로직이 `UsernamePasswordAuthenticationFilter` -> `DaoAuthenticationProvider` 로 들어옵니다.
@@ -38,6 +41,7 @@
 3. **AuthenticationFailureHandler 호출**: 예외가 발생하면 예외 객체는 호출의 역순을 타고 돌아와 처리 필터(`UsernamePasswordAuthenticationFilter`)에서 잡힙니다. 이후 **`AuthenticationEntryPoint`** 또는 기본 **`AuthenticationFailureHandler`**가 실패 처리를 맡아, 기본 에러 로그인 폼(`/login?error`)으로 다시 리다이렉트하거나 401 메세지를 응답하게 됩니다.
 
 ### 2.3 인가 실패 시나리오 (권한 부족)
+
 인증 자체는 성공했으나(로그인 O), 특정 자원(`ADMIN`)에 대한 권한이 부족할 때 나타나는 흐름입니다.
 
 1. 사용자가 이미 로그인되어 발급받은 `JSESSIONID`를 지닌 채로 권한이 필요한 `GET /admin/manage` 엔드포인트를 호출합니다.
@@ -50,10 +54,13 @@
 ---
 
 ## 3. 테스트 가이드 (Postman을 이용한 API 테스트)
-현재 화면(Frontend/UI)이 없는 환경이므로, API 테스터인 Postman을 통해 세션의 유지와 인증, 인가 흐름을 테스트합니다.  
+
+현재 화면(Frontend/UI)이 없는 환경이므로, API 테스터인 Postman을 통해 세션의 유지와 인증, 인가 흐름을 테스트합니다.
+
 > **주의**: Postman은 응답받은 쿠키(`JSESSIONID`)를 내부 Cookie Jar에 자동으로 캐싱하여 다음 요청 시 세션을 유지해줍니다.
 
 ### 3.1 회원가입
+
 - **Method**: `POST`
 - **URL**: `http://localhost:8080/signup`
 - **Header**: `Content-Type: application/json`
@@ -68,6 +75,7 @@
 - **결과**: `200 OK` 및 `"회원가입이 완료되었습니다."` 텍스트 반환. DB에 `testuser` 정보가 성공적으로 인서트 되었음을 알 수 있습니다.
 
 ### 3.2 로그인 시도 및 성공 확인
+
 - **Method**: `POST`
 - **URL**: `http://localhost:8080/login`
 - **Header**: `Content-Type: application/x-www-form-urlencoded`
@@ -77,20 +85,84 @@
 - **결과**: 루트 URL(`/`)로 302 리다이렉트 된 후 최종적으로 `TestController`의 메인 페이지 응답(`"안녕하세요, Tester님! ..."`) 문구가 반환됩니다. **(이 시점에 Postman의 Cookies 탭에 JSESSIONID가 세팅되는지 확인 필수)**.
 
 ### 3.3 인가 (Authorization) 테스트
+
 **3.3.1 USER 권한 접근 (/user/profile) - 성공**
+
 - **Method**: `GET`
 - **URL**: `http://localhost:8080/user/profile`
 - **Header 및 Body**: 추가 설정 불필요 (Postman이 자동으로 `JSESSIONID` 쿠키를 동봉)
 - **결과**: `200 OK` 및 `"회원 프로필 페이지입니다. 반가워요, Tester님!"` 반환. 인증된 USER 권한이 정상 인가되었음을 알 수 있습니다.
 
 **3.3.2 ADMIN 권한 접근 거부 (/admin/manage) - 실패**
+
 - **Method**: `GET`
 - **URL**: `http://localhost:8080/admin/manage`
 - **Header 및 Body**: 추가 설정 불필요 (`JSESSIONID` 존재)
 - **결과**: 권한이 부족하여 **`403 Forbidden`**을 반환합니다. 필터 체인에서 인가가 거부된 사실을 증명합니다.
 
 ### 3.4 비로그인 상태 거부 테스트
+
 - **조치**: Postman의 Cookies 섹션을 열고 현재 도메인(`localhost`)에 부여된 `JSESSIONID` 항목을 삭제합니다.
 - **Method**: `GET`
 - **URL**: `http://localhost:8080/user/profile`
 - **결과**: 로그인이 만료되었기 때문에, Spring Security가 인증이 필요하다고 인지하여 `AuthenticationEntryPoint`에 의해 기본 로그인 페이지의 HTML 코드를 200 반환하거나 `/login` (GET)으로 리다이렉션을 발생시킵니다. 브라우저인 경우 로그인 입력 폼이 뜹니다.
+
+## ERD Diagram
+
+```mermaid
+erDiagram
+    USERS ||--o{ USER_ROLES : "possesses"
+    ROLES ||--o{ USER_ROLES : "assigned_to"
+
+    USERS {
+        long id PK "Auto Increment"
+        string username UK "Login ID"
+        string password "BCrypt Encoded"
+        string nickname "User Display Name"
+        boolean enabled "Account Active Status"
+        boolean account_non_locked "Account Lock Status"
+    }
+
+    ROLES {
+        long id PK "Auto Increment"
+        string name UK "ROLE_USER, ROLE_ADMIN, etc."
+    }
+
+    USER_ROLES {
+        long user_id FK "References USERS.id"
+        long role_id FK "References ROLES.id"
+    }
+```
+
+## API User Flow Chart
+
+```mermaid
+flowchart TD
+    Start([사용자 시작]) --> Signup[POST /signup: 회원가입]
+    Signup --> Login[POST /login: 로그인 시도]
+
+    Login -- 실패 --> LoginError[401/Login Error 페이지]
+    LoginError --> Login
+
+    Login -- 성공 --> Home[메인 페이지 / 이동 <br/>JSESSIONID 발급]
+
+    Home --> RequestUser[GET /user/profile]
+    Home --> RequestAdmin[GET /admin/manage]
+
+    RequestUser --> CheckUserAuth{USER 권한?}
+    CheckUserAuth -- Yes --> UserSuccess[200 OK: 프로필 페이지]
+    CheckUserAuth -- No --> Forbidden[403 Forbidden]
+
+    RequestAdmin --> CheckAdminAuth{ADMIN 권한?}
+    CheckAdminAuth -- Yes --> AdminSuccess[200 OK: 관리 페이지]
+    CheckAdminAuth -- No --> Forbidden
+
+    UserSuccess --> Logout[POST /logout]
+    AdminSuccess --> Logout
+    Logout --> Start
+
+    style Start fill:#f9f,stroke:#333
+    style Forbidden fill:#f66,stroke:#333
+    style Login fill:#bbf,stroke:#333
+
+```
