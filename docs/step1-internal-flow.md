@@ -166,3 +166,78 @@ flowchart TD
     style Login fill:#bbf,stroke:#333
 
 ```
+
+```mermaid
+sequenceDiagram
+    participant User as 사용자/브라우저
+    participant Filter as UsernamePassword<br/>AuthenticationFilter
+    participant Manager as AuthenticationManager
+    participant Provider as DaoAuthenticationProvider
+    participant DB as UserRepository/DB
+
+    participant Manager as LogicManager
+
+    Manager->>+Manager: 내부 정합성 체크 (Self-Call)
+    Note over Manager: 스스로 메서드 호출<br/>(validateData 등)
+    Manager-->>-Manager: 체크 완료
+
+    User->>Filter: POST /login (username, password)
+    Filter->>Filter: 인증용 토큰 생성 (Untrusted)
+    Filter->>Manager: authenticate(token) 요청
+    Manager->>Provider: authenticate(token) 위임
+    Provider->>DB: findByUsername(name)
+    DB-->>Provider: User Entity 반환
+    Provider->>Provider: PasswordEncoder로 암호 검증
+    Provider-->>Manager: 인증된 토큰 반환 (Trusted)
+    Manager-->>Filter: 인증 결과 반환
+    Filter->>Filter: SecurityContext에 저장
+    Filter-->>User: 302 Redirect (Home) + JSESSIONID
+```
+
+---
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 사용자/브라우저
+    participant Filter as UsernamePassword<br/>AuthenticationFilter
+    participant Manager as ProviderManager
+    participant Provider as DaoAuthenticationProvider
+    participant DB as UserRepository/DB
+
+    User->>+Filter: POST /login
+    Filter->>Filter: 인증용 토큰 생성 (Untrusted)
+    Filter->>+Manager: authenticate(token) 요청
+    Manager->>+Provider: authenticate(token) 위임
+
+    Provider->>DB: findByUsername(name) 조회
+
+    alt 계정 정보가 없는 경우
+        DB-->>Provider: 사용자 없음
+        Provider-->>Manager: UsernameNotFoundException
+        Manager-->>Filter: 인증 실패 전달
+        Filter-->>User: /login?error 리다이렉트
+    else 계정 정보가 있는 경우
+        DB-->>Provider: 사용자 정보(UserEntity) 반환
+
+        Note over Provider: matches() 검증 수행
+
+        alt 비밀번호 불일치
+            Provider-->>Manager: BadCredentialsException
+            Manager-->>Filter: 인증 실패 전달
+            Filter-->>User: /login?error 리다이렉트
+        else 비밀번호 일치 (성공!)
+            Provider-->>Manager: 인증 토큰 반환 (Trusted)
+            Manager-->>Filter: 인증 완료 반환
+            Filter->>Filter: SecurityContext에 저장
+            Filter-->>User: / 리다이렉트 (성차)
+        end
+    end
+
+    %% 모든 작업이 완전히 끝난 후 여기서 한 번에 비활성화
+    deactivate Provider
+    deactivate Manager
+    deactivate Filter
+
+
+```
