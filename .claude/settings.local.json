@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/spring-boot-testing/references/mockmvc-tester.md /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/springboot-test-guide/references/mockmvc-tester.md)",
+      "Bash(cp /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/spring-boot-testing/references/mockmvc-classic.md /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/springboot-test-guide/references/mockmvc-classic.md)",
+      "Bash(cp /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/spring-boot-testing/references/restclienttest.md /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/springboot-test-guide/references/restclienttest.md)",
+      "Bash(cp /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/spring-boot-testing/references/assertj-basics.md /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/springboot-test-guide/references/assertj-basics.md)",
+      "Bash(cp /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/spring-boot-testing/references/assertj-collections.md /mnt/c/Users/SSAFY/Desktop/SpringAuthorizationProject/.claude/skills/springboot-test-guide/references/assertj-collections.md)"
+    ]
+  }
+}

@@ -117,9 +117,19 @@
       "computedHash": "84e3fcf89fca33ab50d1d6bc830c897673499e7be1b9a92a33a0cef21dfe44ef"
     },
     "skill-creator": {
-      "source": "vercel-labs/agent-browser",
+      "source": "anthropics/skills",
       "sourceType": "github",
-      "computedHash": "0e1196449595117435416d50c130e706cd86010fed959eb3a6d41cf989328506"
+      "computedHash": "57f470f512f45bdac598e302bc72fd62bf2b649fc7fad032efe97720149cde4d"
+    },
+    "spring-boot-test-patterns": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "computedHash": "64bad0e697b4390e9835637d16b0d4e81600d8f186c2ceb7c95cef86c23d9b22"
+    },
+    "spring-boot-testing": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "4e6153fd6eed64dfc6b0f9a2a38ef8e636a88977702a49f3c5691fafcc02d8a8"
     },
     "stitch-loop": {
       "source": "google-labs-code/stitch-skills",
