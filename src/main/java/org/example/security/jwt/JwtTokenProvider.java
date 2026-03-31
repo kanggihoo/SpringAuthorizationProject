@@ -58,11 +58,11 @@ public class JwtTokenProvider {
 
   // JWT 파싱 및 Claims 추출
   public Claims parseClaims(String token) {
-    return Jwts.parser()
-        .verifyWith(key)
-        .build()
-        .parseSignedClaims(token)
-        .getPayload();
+    return Jwts.parser() // jwt parser 객체 생성 
+        .verifyWith(key) // key 기반으로 검증 
+        .build() // jwt 검증 객체 생성
+        .parseSignedClaims(token) // 토큰 변조여부, 토큰 만료 여부 확인 
+        .getPayload(); // jtw 토큰 내용물 반환 
   }
 
   // 토큰 서명 유효성 검증

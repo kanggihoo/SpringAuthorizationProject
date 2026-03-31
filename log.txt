@@ -1,0 +1,58 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+
+> Task :compileTestJava FAILED
+C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:51: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+        LoginRequestDto request = new LoginRequestDto("testuser", "password");
+                                  ^
+  required: no arguments
+  found:    String,String
+  reason: actual and formal argument lists differ in length
+C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:74: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+        LoginRequestDto request = new LoginRequestDto("testuser", "password");
+                                  ^
+  required: no arguments
+  found:    String,String
+  reason: actual and formal argument lists differ in length
+C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:99: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+        LoginRequestDto request = new LoginRequestDto("wronguser", "wrongpass");
+                                  ^
+  required: no arguments
+  found:    String,String
+  reason: actual and formal argument lists differ in length
+3 errors
+
+[Incubating] Problems report is available at: file:///C:/Users/SSAFY/Desktop/SpringAuthorizationProject/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:51: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+          LoginRequestDto request = new LoginRequestDto("testuser", "password");
+                                    ^
+    required: no arguments
+    found:    String,String
+    reason: actual and formal argument lists differ in length
+  C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:74: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+          LoginRequestDto request = new LoginRequestDto("testuser", "password");
+                                    ^
+    required: no arguments
+    found:    String,String
+    reason: actual and formal argument lists differ in length
+  C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\test\java\org\example\service\AuthServiceImplTest.java:99: error: constructor LoginRequestDto in class LoginRequestDto cannot be applied to given types;
+          LoginRequestDto request = new LoginRequestDto("wronguser", "wrongpass");
+                                    ^
+    required: no arguments
+    found:    String,String
+    reason: actual and formal argument lists differ in length
+  3 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 2s
+3 actionable tasks: 1 executed, 2 up-to-date

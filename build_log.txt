@@ -1,0 +1,39 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Task :compileJava
+C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\main\java\org\example\config\LocalSecurityConfig.java:3: error: package org.h2.server.web does not exist
+import org.h2.server.web.JakartaWebServlet;
+                        ^
+C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\main\java\org\example\config\LocalSecurityConfig.java:21: error: cannot find symbol
+  ServletRegistrationBean<JakartaWebServlet> h2ConsoleServlet() {
+                          ^
+  symbol:   class JakartaWebServlet
+  location: class LocalSecurityConfig
+2 errors
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/SSAFY/Desktop/SpringAuthorizationProject/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\main\java\org\example\config\LocalSecurityConfig.java:21: error: cannot find symbol
+    ServletRegistrationBean<JakartaWebServlet> h2ConsoleServlet() {
+                            ^
+    symbol:   class JakartaWebServlet
+    location: class LocalSecurityConfig
+  C:\Users\SSAFY\Desktop\SpringAuthorizationProject\src\main\java\org\example\config\LocalSecurityConfig.java:3: error: package org.h2.server.web does not exist
+  import org.h2.server.web.JakartaWebServlet;
+                          ^
+  2 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 10s
+1 actionable task: 1 executed

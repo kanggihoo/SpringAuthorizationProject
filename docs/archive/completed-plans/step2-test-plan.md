@@ -10,12 +10,14 @@ Unit → Slice → Integration 계층별로 테스트를 작성하여 핵심 인
 ## 1. build.gradle 변경사항
 
 ### 제거
+
 ```groovy
 // 존재하지 않는 아티팩트 — 삭제
 testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client-test'
 ```
 
 ### 추가
+
 ```groovy
 // WebTestClient (@SpringBootTest 통합 테스트용)
 testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
@@ -32,6 +34,7 @@ testImplementation 'org.testcontainers:testcontainers-postgresql'  // Testcontai
 > **이유 (Testcontainers)**: H2 대신 실제 PostgreSQL 도커 이미지를 사용하여 운영 환경과 동일한 DB 동작(타입, 제약, 쿼리)을 검증한다. `spring-boot-testcontainers`가 `@ServiceConnection`을 제공하여 datasource 자동 연결된다.
 
 ### 플러그인 추가
+
 ```groovy
 plugins {
     // 기존 유지...
@@ -40,6 +43,7 @@ plugins {
 ```
 
 ### jacoco 설정 추가 (tasks 블록 아래)
+
 ```groovy
 tasks.named('test') {
     useJUnitPlatform()
@@ -91,6 +95,7 @@ src/test/
 ```
 
 ### application-test.yml
+
 Testcontainers `@ServiceConnection`이 datasource를 자동 주입하므로 DB URL 설정 불필요.
 JWT 설정과 JPA DDL만 명시.
 
@@ -133,6 +138,7 @@ void refresh_throwsException_whenTokenNotInDb() { ... }
 ```
 
 **작성 원칙**:
+
 - 주어(누가/무엇이) + 조건(언제/어떤 상황에서) + 결과(어떻게 된다) 구조 권장
 - 클래스 레벨에도 `@DisplayName("AuthServiceImpl — 인증 서비스")` 형태로 그룹화
 
@@ -157,70 +163,70 @@ static CustomUserDetails buildUserDetails(String username, String roleName)
 
 직접 생성: `new JwtTokenProvider(SECRET, 3_600_000L, 604_800_000L)`
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `generateAccessToken_containsUsernameAndRoles` | claims.subject = username, claims["roles"] 포함 |
-| `generateRefreshToken_containsOnlySubject` | claims["roles"] null |
-| `validateToken_returnsTrueForValidToken` | 정상 토큰 |
-| `validateToken_throwsExpiredJwtException` | -1ms 만료 토큰 |
-| `validateToken_throwsMalformedJwtException` | `"abc.def"` 형식 불량 토큰 |
-| `validateToken_throwsJwtException_forBlankToken` | 빈 문자열 |
-| `validateToken_throwsJwtException_forWrongSignature` | 다른 키로 서명된 토큰 |
-| `validateToken_throwsUnsupportedJwtException_forUnsignedToken` | none 알고리즘 토큰 |
-| `getRefreshTokenExpiration_returnsConfiguredValue` | 604_800_000L 반환 |
+| 테스트 메서드                                                  | 시나리오                                        |
+| -------------------------------------------------------------- | ----------------------------------------------- |
+| `generateAccessToken_containsUsernameAndRoles`                 | claims.subject = username, claims["roles"] 포함 |
+| `generateRefreshToken_containsOnlySubject`                     | claims["roles"] null                            |
+| `validateToken_returnsTrueForValidToken`                       | 정상 토큰                                       |
+| `validateToken_throwsExpiredJwtException`                      | -1ms 만료 토큰                                  |
+| `validateToken_throwsMalformedJwtException`                    | `"abc.def"` 형식 불량 토큰                      |
+| `validateToken_throwsJwtException_forBlankToken`               | 빈 문자열                                       |
+| `validateToken_throwsJwtException_forWrongSignature`           | 다른 키로 서명된 토큰                           |
+| `validateToken_throwsUnsupportedJwtException_forUnsignedToken` | none 알고리즘 토큰                              |
+| `getRefreshTokenExpiration_returnsConfiguredValue`             | 604_800_000L 반환                               |
 
 ### 5.2 CustomUserDetailsServiceTest (3개)
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `loadUserByUsername_returnsCustomUserDetails_whenFound` | username 조회 성공 |
-| `loadUserByUsername_throwsUsernameNotFoundException_whenNotFound` | Optional.empty() |
-| `loadUserByUsername_reflectsAccountLockFlag` | accountNonLocked=false 반영 |
+| 테스트 메서드                                                     | 시나리오                    |
+| ----------------------------------------------------------------- | --------------------------- |
+| `loadUserByUsername_returnsCustomUserDetails_whenFound`           | username 조회 성공          |
+| `loadUserByUsername_throwsUsernameNotFoundException_whenNotFound` | Optional.empty()            |
+| `loadUserByUsername_reflectsAccountLockFlag`                      | accountNonLocked=false 반영 |
 
 ### 5.3 AuthServiceImplTest (8개)
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `login_returnsTokens_andCreatesNewRefreshToken` | RT 없음 → save() 호출 |
-| `login_updatesExistingRefreshToken_onReLogin` | RT 있음 → updateToken() 호출, save() 미호출 |
-| `login_propagatesException_onBadCredentials` | BadCredentialsException 전파 |
-| `logout_deletesRefreshToken_byUserId` | deleteByUserId 호출 검증 |
-| `refresh_returnsNewTokens_andUpdatesDb` | 정상 RTR 순환 |
-| `refresh_throwsException_whenTokenNotInDb` | DB 불일치 → 탈취 간주 |
-| `refresh_propagatesExpiredException` | 만료 RT → DB 미조회 |
-| `refresh_throwsUsernameNotFoundException_whenUserDeleted` | userId 조회 실패 |
+| 테스트 메서드                                             | 시나리오                                    |
+| --------------------------------------------------------- | ------------------------------------------- |
+| `login_returnsTokens_andCreatesNewRefreshToken`           | RT 없음 → save() 호출                       |
+| `login_updatesExistingRefreshToken_onReLogin`             | RT 있음 → updateToken() 호출, save() 미호출 |
+| `login_propagatesException_onBadCredentials`              | BadCredentialsException 전파                |
+| `logout_deletesRefreshToken_byUserId`                     | deleteByUserId 호출 검증                    |
+| `refresh_returnsNewTokens_andUpdatesDb`                   | 정상 RTR 순환                               |
+| `refresh_throwsException_whenTokenNotInDb`                | DB 불일치 → 탈취 간주                       |
+| `refresh_propagatesExpiredException`                      | 만료 RT → DB 미조회                         |
+| `refresh_throwsUsernameNotFoundException_whenUserDeleted` | userId 조회 실패                            |
 
 ### 5.4 UserServiceImplTest (4개)
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `signup_savesUser_withEncodedPassword_andExistingRole` | 정상 가입 |
-| `signup_createsNewRole_whenRoleNotFound` | Role 자동 생성 |
-| `signup_throwsRuntimeException_onDuplicateUsername` | 중복 username |
-| `signup_neverCallsSave_whenDuplicateDetected` | 중복 시 save() 미호출 |
+| 테스트 메서드                                          | 시나리오              |
+| ------------------------------------------------------ | --------------------- |
+| `signup_savesUser_withEncodedPassword_andExistingRole` | 정상 가입             |
+| `signup_createsNewRole_whenRoleNotFound`               | Role 자동 생성        |
+| `signup_throwsRuntimeException_onDuplicateUsername`    | 중복 username         |
+| `signup_neverCallsSave_whenDuplicateDetected`          | 중복 시 save() 미호출 |
 
 ### 5.5 JwtAuthenticationFilterTest (8개)
 
 `MockHttpServletRequest / MockHttpServletResponse / MockFilterChain` 활용
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
+| 테스트 메서드                                             | 시나리오                        |
+| --------------------------------------------------------- | ------------------------------- |
 | `doFilterInternal_setsAuthentication_forValidBearerToken` | SecurityContextHolder 세팅 확인 |
-| `doFilterInternal_doesNotSetAuthentication_whenNoHeader` | 헤더 없음 → Context 비어있음 |
-| `doFilterInternal_propagatesException_whenTokenInvalid` | MalformedJwtException 전파 |
-| `shouldNotFilter_returnsTrue_forLoginPath` | /login |
-| `shouldNotFilter_returnsTrue_forSignupPath` | /signup |
-| `shouldNotFilter_returnsTrue_forRefreshPath` | /refresh |
-| `shouldNotFilter_returnsTrue_forSwaggerPath` | /swagger-ui/index.html |
-| `shouldNotFilter_returnsFalse_forApiPath` | /user/profile |
+| `doFilterInternal_doesNotSetAuthentication_whenNoHeader`  | 헤더 없음 → Context 비어있음    |
+| `doFilterInternal_propagatesException_whenTokenInvalid`   | MalformedJwtException 전파      |
+| `shouldNotFilter_returnsTrue_forLoginPath`                | /login                          |
+| `shouldNotFilter_returnsTrue_forSignupPath`               | /signup                         |
+| `shouldNotFilter_returnsTrue_forRefreshPath`              | /refresh                        |
+| `shouldNotFilter_returnsTrue_forSwaggerPath`              | /swagger-ui/index.html          |
+| `shouldNotFilter_returnsFalse_forApiPath`                 | /user/profile                   |
 
 ### 5.6 ExceptionHandlerFilterTest (3개)
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `doFilterInternal_callsNextFilter_whenNoException` | resolver 미호출 |
-| `doFilterInternal_delegatesToResolver_whenFilterChainThrows` | RuntimeException → resolver 호출 |
-| `doFilterInternal_delegatesToResolver_forJwtException` | ExpiredJwtException → resolver 호출 |
+| 테스트 메서드                                                | 시나리오                            |
+| ------------------------------------------------------------ | ----------------------------------- |
+| `doFilterInternal_callsNextFilter_whenNoException`           | resolver 미호출                     |
+| `doFilterInternal_delegatesToResolver_whenFilterChainThrows` | RuntimeException → resolver 호출    |
+| `doFilterInternal_delegatesToResolver_forJwtException`       | ExpiredJwtException → resolver 호출 |
 
 ---
 
@@ -245,28 +251,28 @@ class UserRepositoryTest {
 
 > `@AutoConfigureTestDatabase(replace = NONE)` 필수 — 기본값은 임베디드 DB로 교체하므로 Testcontainers 컨테이너가 무시됨.
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `findByUsername_returnsUser_whenExists` | 정상 조회 |
-| `findByUsername_returnsEmpty_whenNotExists` | Optional.empty() |
-| `findByUsername_returnsEmpty_afterDeleted` | 삭제 후 조회 |
-| `save_generatesIdAndPersistsRoles` | 저장 후 EAGER 로드 검증 |
-| `save_enforcesUniqueUsername` | 중복 저장 → DataIntegrityViolationException |
+| 테스트 메서드                               | 시나리오                                    |
+| ------------------------------------------- | ------------------------------------------- |
+| `findByUsername_returnsUser_whenExists`     | 정상 조회                                   |
+| `findByUsername_returnsEmpty_whenNotExists` | Optional.empty()                            |
+| `findByUsername_returnsEmpty_afterDeleted`  | 삭제 후 조회                                |
+| `save_generatesIdAndPersistsRoles`          | 저장 후 EAGER 로드 검증                     |
+| `save_enforcesUniqueUsername`               | 중복 저장 → DataIntegrityViolationException |
 
 ### 6.2 RefreshTokenRepositoryTest — @DataJpaTest + Testcontainers PostgreSQL (7개)
 
 `UserRepositoryTest`와 동일한 `@Container @ServiceConnection static PostgreSQLContainer<?>` 패턴 적용.
 두 클래스가 동일한 컨테이너 이미지 + 설정을 공유하므로 Spring 컨텍스트 캐시가 재사용됨 (컨테이너 재기동 없음).
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `findByUserId_returnsToken_whenExists` | 정상 조회 |
-| `findByUserId_returnsEmpty_whenNotFound` | Optional.empty() |
-| `findByRefreshToken_returnsToken_whenExists` | 토큰 문자열로 조회 |
-| `findByRefreshToken_returnsEmpty_forUnknownToken` | 미존재 토큰 |
-| `deleteByUserId_removesToken` | 삭제 후 조회 → empty |
-| `save_enforcesUniqueUserId` | userId 중복 → DataIntegrityViolationException |
-| `updateToken_changesValueAndExpiry` | RTR 갱신 검증 |
+| 테스트 메서드                                     | 시나리오                                      |
+| ------------------------------------------------- | --------------------------------------------- |
+| `findByUserId_returnsToken_whenExists`            | 정상 조회                                     |
+| `findByUserId_returnsEmpty_whenNotFound`          | Optional.empty()                              |
+| `findByRefreshToken_returnsToken_whenExists`      | 토큰 문자열로 조회                            |
+| `findByRefreshToken_returnsEmpty_forUnknownToken` | 미존재 토큰                                   |
+| `deleteByUserId_removesToken`                     | 삭제 후 조회 → empty                          |
+| `save_enforcesUniqueUserId`                       | userId 중복 → DataIntegrityViolationException |
+| `updateToken_changesValueAndExpiry`               | RTR 갱신 검증                                 |
 
 ### 6.3 AuthControllerTest — @WebMvcTest(AuthController.class) + @Import(SecurityConfig.class) (13개)
 
@@ -276,21 +282,21 @@ class UserRepositoryTest {
 
 **MockMvcTester** AssertJ 스타일 사용
 
-| 그룹 | 테스트 메서드 | 시나리오 |
-|---|---|---|
-| POST /signup | `signup_returns200_forValidRequest` | 정상 가입 |
-| | `signup_returns422_forBlankUsername` | @NotBlank 위반 |
-| | `signup_returns422_forTooShortUsername` | @Size(min=4) 위반 |
-| | `signup_returns422_forShortPassword` | @Size(min=8) 위반 |
-| | `signup_returns400_whenServiceThrowsDuplicate` | RuntimeException → 400 |
-| POST /login | `login_returns200_withAccessToken_andRefreshTokenCookie` | accessToken in body + Set-Cookie 검증 |
-| | `login_returns422_forBlankCredentials` | 유효성 실패 |
-| | `login_returns400_whenAuthenticationFails` | RuntimeException → 400 |
-| POST /logout | `logout_returns200_andClearsCookie_whenAuthenticated` | `@WithUserDetails("alice")` + cookie Max-Age=0 검증 |
-| | `logout_returns401_whenNotAuthenticated` | 미인증 → 401 |
-| POST /refresh | `refresh_returns200_withNewTokens` | `MockCookie("Refresh-Token", "old-rt")` 사용 |
-| | `refresh_returns400_whenNoCookiePresent` | 쿠키 없음 → 400 |
-| | `refresh_returns401_whenTokenExpired` | ExpiredJwtException → 401 |
+| 그룹          | 테스트 메서드                                            | 시나리오                                            |
+| ------------- | -------------------------------------------------------- | --------------------------------------------------- |
+| POST /signup  | `signup_returns200_forValidRequest`                      | 정상 가입                                           |
+|               | `signup_returns422_forBlankUsername`                     | @NotBlank 위반                                      |
+|               | `signup_returns422_forTooShortUsername`                  | @Size(min=4) 위반                                   |
+|               | `signup_returns422_forShortPassword`                     | @Size(min=8) 위반                                   |
+|               | `signup_returns400_whenServiceThrowsDuplicate`           | RuntimeException → 400                              |
+| POST /login   | `login_returns200_withAccessToken_andRefreshTokenCookie` | accessToken in body + Set-Cookie 검증               |
+|               | `login_returns422_forBlankCredentials`                   | 유효성 실패                                         |
+|               | `login_returns400_whenAuthenticationFails`               | RuntimeException → 400                              |
+| POST /logout  | `logout_returns200_andClearsCookie_whenAuthenticated`    | `@WithUserDetails("alice")` + cookie Max-Age=0 검증 |
+|               | `logout_returns401_whenNotAuthenticated`                 | 미인증 → 401                                        |
+| POST /refresh | `refresh_returns200_withNewTokens`                       | `MockCookie("Refresh-Token", "old-rt")` 사용        |
+|               | `refresh_returns400_whenNoCookiePresent`                 | 쿠키 없음 → 400                                     |
+|               | `refresh_returns401_whenTokenExpired`                    | ExpiredJwtException → 401                           |
 
 > **주의**: `@WithMockUser`는 Spring Security `User` 객체를 주입 → `AuthController.logout()`이 `CustomUserDetails`로 캐스팅 실패.
 > `/logout` 테스트는 `@WithUserDetails("alice")`와 `customUserDetailsService` 스텁 조합 사용.
@@ -301,16 +307,16 @@ class UserRepositoryTest {
 
 동일한 `@MockitoBean` 세트 (SecurityConfig 의존성)
 
-| 테스트 메서드 | 시나리오 |
-|---|---|
-| `index_returns200_forAnonymousUser` | 공개 엔드포인트 |
-| `index_returns200_withNickname_forAuthenticatedUser` | `@WithMockUser` |
-| `userProfile_returns401_forAnonymousUser` | 미인증 → 401 |
-| `userProfile_returns200_forUserRole` | `@WithMockUser(roles="USER")` |
-| `userProfile_returns200_forAdminRole` | `@WithMockUser(roles="ADMIN")` (hasAnyRole 포함) |
-| `adminManage_returns401_forAnonymousUser` | 미인증 → 401 |
-| `adminManage_returns403_forUserRole` | `@WithMockUser(roles="USER")` → 403 |
-| `adminManage_returns200_forAdminRole` | `@WithMockUser(roles="ADMIN")` → 200 |
+| 테스트 메서드                                        | 시나리오                                         |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| `index_returns200_forAnonymousUser`                  | 공개 엔드포인트                                  |
+| `index_returns200_withNickname_forAuthenticatedUser` | `@WithMockUser`                                  |
+| `userProfile_returns401_forAnonymousUser`            | 미인증 → 401                                     |
+| `userProfile_returns200_forUserRole`                 | `@WithMockUser(roles="USER")`                    |
+| `userProfile_returns200_forAdminRole`                | `@WithMockUser(roles="ADMIN")` (hasAnyRole 포함) |
+| `adminManage_returns401_forAnonymousUser`            | 미인증 → 401                                     |
+| `adminManage_returns403_forUserRole`                 | `@WithMockUser(roles="USER")` → 403              |
+| `adminManage_returns200_forAdminRole`                | `@WithMockUser(roles="ADMIN")` → 200             |
 
 ---
 
@@ -333,21 +339,21 @@ class AuthFlowIntegrationTest {
 
 **@Transactional 미사용** — 실제 DB 커밋으로 크로스-요청 상태 검증
 
-| @Order | 테스트 메서드 | 시나리오 |
-|---|---|---|
-| 1 | `signup_returns200_forValidRequest` | 정상 가입 |
-| 2 | `signup_returns400_forDuplicateUsername` | 중복 username |
-| 3 | `signup_returns422_forInvalidInput` | 유효성 실패 |
-| 4 | `login_returns200_withAccessToken_andRefreshTokenCookie` | 토큰 발급 + HttpOnly 쿠키 확인 |
-| 5 | `login_returns400_forWrongPassword` | 잘못된 비밀번호 |
-| 6 | `accessProtectedEndpoint_returns200_withValidJwt` | `Authorization: Bearer <at>` → /user/profile 200 |
-| 7 | `accessProtectedEndpoint_returns401_withoutJwt` | 토큰 없음 → 401 JSON |
-| 8 | `accessAdminEndpoint_returns403_forUserRole` | USER 토큰 → /admin/manage 403 JSON |
-| 9 | `refresh_rotatesTokens_andReturns200` | RT 쿠키 전달 → 새 AT+RT 발급, 기존과 다른 값 확인 |
-| 10 | `refresh_returns400_onRtrAttack_whenOldTokenReused` | 이전 RT 재사용 → 400 |
-| 11 | `refresh_returns400_whenNoCookieProvided` | 쿠키 없음 → 400 |
-| 12 | `logout_returns200_andClearsCookie` | 로그아웃 → Max-Age=0 쿠키 확인 |
-| 13 | `accessProtectedEndpoint_returns200_afterLogout_withSameAt` | AT는 여전히 유효 (stateless 설계 검증) |
+| @Order | 테스트 메서드                                               | 시나리오                                          |
+| ------ | ----------------------------------------------------------- | ------------------------------------------------- |
+| 1      | `signup_returns200_forValidRequest`                         | 정상 가입                                         |
+| 2      | `signup_returns400_forDuplicateUsername`                    | 중복 username                                     |
+| 3      | `signup_returns422_forInvalidInput`                         | 유효성 실패                                       |
+| 4      | `login_returns200_withAccessToken_andRefreshTokenCookie`    | 토큰 발급 + HttpOnly 쿠키 확인                    |
+| 5      | `login_returns400_forWrongPassword`                         | 잘못된 비밀번호                                   |
+| 6      | `accessProtectedEndpoint_returns200_withValidJwt`           | `Authorization: Bearer <at>` → /user/profile 200  |
+| 7      | `accessProtectedEndpoint_returns401_withoutJwt`             | 토큰 없음 → 401 JSON                              |
+| 8      | `accessAdminEndpoint_returns403_forUserRole`                | USER 토큰 → /admin/manage 403 JSON                |
+| 9      | `refresh_rotatesTokens_andReturns200`                       | RT 쿠키 전달 → 새 AT+RT 발급, 기존과 다른 값 확인 |
+| 10     | `refresh_returns400_onRtrAttack_whenOldTokenReused`         | 이전 RT 재사용 → 400                              |
+| 11     | `refresh_returns400_whenNoCookieProvided`                   | 쿠키 없음 → 400                                   |
+| 12     | `logout_returns200_andClearsCookie`                         | 로그아웃 → Max-Age=0 쿠키 확인                    |
+| 13     | `accessProtectedEndpoint_returns200_afterLogout_withSameAt` | AT는 여전히 유효 (stateless 설계 검증)            |
 
 > **시나리오 13 중요**: 로그아웃 후에도 기존 AT는 만료 전까지 유효 → 200 반환.
 > 이는 의도된 stateless 설계이며 테스트로 명시해야 함. RT로 재발급 불가 → 400.
@@ -374,31 +380,43 @@ class AuthFlowIntegrationTest {
 
 ## 9. 주요 함정 및 대응책
 
-| 함정 | 대응책 |
-|---|---|
+| 함정                                                                                                   | 대응책                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@WebMvcTest` + `SecurityConfig` 임포트 시 4개 필터/핸들러 빈 미등록 → `NoSuchBeanDefinitionException` | `JwtAuthenticationFilter`, `ExceptionHandlerFilter`, `CustomAuthenticationEntryPoint`, `CustomAccessDeniedHandler` 모두 `@MockitoBean` 등록 |
-| `@WithMockUser`는 `CustomUserDetails`가 아닌 `User` 주입 → `AuthController.logout()` 캐스팅 오류 | `/logout` 테스트는 `@WithUserDetails("alice")` + `customUserDetailsService` 스텁 조합 |
-| `TokenResponseDto.refreshToken`이 `@JsonIgnore` → 응답 body에 없음 | Set-Cookie 헤더로만 refresh token 값 검증 |
-| `User.id`는 setter 없음 → 단위 테스트에서 ID 주입 불가 | `ReflectionTestUtils.setField(user, "id", 1L)` 사용 |
-| `@MockBean` 사용 시 컴파일 경고 또는 deprecated | Spring Boot 4에서는 반드시 `@MockitoBean` / `@MockitoSpyBean` 사용 |
-| `@DataJpaTest` 기본값이 H2로 교체 → Testcontainers 무시됨 | `@AutoConfigureTestDatabase(replace = NONE)` 필수 |
-| Jackson 3 패키지 변경 — `com.fasterxml.jackson` → `tools.jackson.databind` | 테스트 config에서 구 패키지 사용 금지 |
+| `@WithMockUser`는 `CustomUserDetails`가 아닌 `User` 주입 → `AuthController.logout()` 캐스팅 오류       | `/logout` 테스트는 `@WithUserDetails("alice")` + `customUserDetailsService` 스텁 조합                                                       |
+| `TokenResponseDto.refreshToken`이 `@JsonIgnore` → 응답 body에 없음                                     | Set-Cookie 헤더로만 refresh token 값 검증                                                                                                   |
+| `User.id`는 setter 없음 → 단위 테스트에서 ID 주입 불가                                                 | `ReflectionTestUtils.setField(user, "id", 1L)` 사용                                                                                         |
+| `@MockBean` 사용 시 컴파일 경고 또는 deprecated                                                        | Spring Boot 4에서는 반드시 `@MockitoBean` / `@MockitoSpyBean` 사용                                                                          |
+| `@DataJpaTest` 기본값이 H2로 교체 → Testcontainers 무시됨                                              | `@AutoConfigureTestDatabase(replace = NONE)` 필수                                                                                           |
+| Jackson 3 패키지 변경 — `com.fasterxml.jackson` → `tools.jackson.databind`                             | 테스트 config에서 구 패키지 사용 금지                                                                                                       |
 
 ---
 
 ## 10. 파일별 예상 테스트 수 요약
 
-| 클래스 | 계층 | 테스트 수 |
-|---|---|---|
-| JwtTokenProviderTest | Unit | 9 |
-| CustomUserDetailsServiceTest | Unit | 3 |
-| AuthServiceImplTest | Unit | 8 |
-| UserServiceImplTest | Unit | 4 |
-| JwtAuthenticationFilterTest | Unit | 8 |
-| ExceptionHandlerFilterTest | Unit | 3 |
-| UserRepositoryTest | @DataJpaTest | 5 |
-| RefreshTokenRepositoryTest | @DataJpaTest | 7 |
-| AuthControllerTest | @WebMvcTest | 13 |
-| TestControllerTest | @WebMvcTest | 8 |
-| AuthFlowIntegrationTest | @SpringBootTest | 13 |
-| **합계** | | **~81개** |
+| 클래스                       | 계층            | 테스트 수 |
+| ---------------------------- | --------------- | --------- |
+| JwtTokenProviderTest         | Unit            | 9         |
+| CustomUserDetailsServiceTest | Unit            | 3         |
+| AuthServiceImplTest          | Unit            | 8         |
+| UserServiceImplTest          | Unit            | 4         |
+| JwtAuthenticationFilterTest  | Unit            | 8         |
+| ExceptionHandlerFilterTest   | Unit            | 3         |
+| UserRepositoryTest           | @DataJpaTest    | 5         |
+| RefreshTokenRepositoryTest   | @DataJpaTest    | 7         |
+| AuthControllerTest           | @WebMvcTest     | 13        |
+| TestControllerTest           | @WebMvcTest     | 8         |
+| AuthFlowIntegrationTest      | @SpringBootTest | 13        |
+| **합계**                     |                 | **~81개** |
+
+- [x] 5.1 JwtTokenProviderTest (9개)
+- [x] 5.2 CustomUserDetailsServiceTest (3개)
+- [x] 5.3 AuthServiceImplTest (8개)
+- [x] 5.4 UserServiceImplTest (4개)
+- [x] 5.5 JwtAuthenticationFilterTest (8개)
+- [x] 5.6 ExceptionHandlerFilterTest (3개)
+- [x] 6.1 UserRepositoryTest
+- [x] 6.2 RefreshTokenRepositoryTest
+- [x] 6.3 AuthControllerTest
+- [x] 6.4 TestControllerTest
+- [ ] 7. Integration Tests
