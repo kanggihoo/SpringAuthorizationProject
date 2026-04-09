@@ -50,6 +50,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
   @Transactional
   public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
     // 1. 부모 클래스를 통해 소셜 제공자로부터 사용자 정보 수신
+    // 이미 "인가 코드(Authorization Code)"를 "액세스 토큰(Access Token)"으로 교환한 직후
     OAuth2User oauth2User = super.loadUser(userRequest);
 
     // 2. 제공자 ID 추출 (예: "google")
@@ -66,39 +67,43 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     log.info("OAuth2 로그인 시도 - provider: {}, providerId: {}, email: {}",
         registrationId, providerId, email);
 
-    // 4. provider + providerId 기준으로 기존 가입 유저 조회
+    // 4. registrationId를 기반으로 AuthProvider 결정 (구글, 카카오 등)
+    AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
+
+    // 5. provider + providerId 기준으로 기존 가입 유저 조회
     //    (이메일이 아닌 providerId로 조회하는 이유: 이메일은 변경될 수 있지만 sub는 불변)
     User user = userRepository
-        .findByProviderAndProviderId(AuthProvider.GOOGLE, providerId)
-        .orElseGet(() -> registerNewOAuth2User(userInfo));
+        .findByProviderAndProviderId(authProvider, providerId)
+        .orElseGet(() -> registerNewOAuth2User(authProvider, userInfo));
 
     log.info("OAuth2 사용자 처리 완료 - userId: {}, username: {}", user.getId(), user.getUsername());
 
-    // 5. Google OAuth2User와 우리 서버 User를 함께 래핑하여 반환
+    // 6. 소셜 OAuth2User와 우리 서버 User를 함께 래핑하여 반환
     return new CustomOAuth2User(oauth2User, user);
   }
 
   /**
    * 최초 OAuth2 로그인 시 우리 서버에 자동으로 회원가입을 처리한다.
    *
-   * <p>username 규칙: "GOOGLE_{providerId}" — LOCAL 유저의 username과 충돌 방지.
+   * <p>username 규칙: "{PROVIDER}_{providerId}" — LOCAL 유저의 username과 충돌 방지.
    * 비밀번호는 OAuth2 유저에게 불필요하므로 설정하지 않는다(null).
    *
+   * @param provider 소셜 제공자 (Google, Kakao 등)
    * @param userInfo 소셜 제공자로부터 파싱된 사용자 정보
    * @return 저장된 새 User 엔티티
    */
-  private User registerNewOAuth2User(OAuth2UserInfo userInfo) {
-    log.info("신규 OAuth2 유저 자동 회원가입 - email: {}", userInfo.getEmail());
+  private User registerNewOAuth2User(AuthProvider provider, OAuth2UserInfo userInfo) {
+    log.info("신규 OAuth2 유저 자동 회원가입 - provider: {}, email: {}", provider, userInfo.getEmail());
 
-    // OAuth2 유저 전용 username: "GOOGLE_{providerId}" 형식으로 LOCAL 유저와 충돌 방지
-    String username = "GOOGLE_" + userInfo.getProviderId();
+    // OAuth2 유저 전용 username: "{PROVIDER}_{providerId}" 형식으로 LOCAL 유저와 충돌 방지
+    String username = provider.name() + "_" + userInfo.getProviderId();
 
     // 신규 OAuth2 유저 엔티티 생성 (password는 null — OAuth2 유저는 비밀번호 불필요)
     User newUser = User.oauthBuilder()
         .username(username)
         .nickname(userInfo.getName())
         .email(userInfo.getEmail())
-        .provider(AuthProvider.GOOGLE)
+        .provider(provider)
         .providerId(userInfo.getProviderId())
         .build();
 
