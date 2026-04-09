@@ -1,4 +1,6 @@
 HELP.md
+**/application-local.yml
+
 
 ### Eclipse ###
 .metadata
@@ -271,4 +273,5 @@ out/
 /docs/available_skills.md
 
 .worktrees/
-.worktrees/
+
+

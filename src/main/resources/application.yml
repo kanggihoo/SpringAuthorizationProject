@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: local
   # 데이터베이스 연결 설정 (Docker Compose로 실행되는 로컬 PostgreSQL)
   datasource:
     url: jdbc:postgresql://localhost:5432/java_test
