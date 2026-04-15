@@ -31,7 +31,4 @@ public class SignupRequest {
   @NotBlank(message = "닉네임은 필수 입력 값입니다.")
   private String nickname;
 
-  // 기본값은 USER로 설정
-  @Schema(description = "사용자 권한 명", example = "ROLE_USER", defaultValue = "ROLE_USER")
-  private String role = "ROLE_USER";
 }

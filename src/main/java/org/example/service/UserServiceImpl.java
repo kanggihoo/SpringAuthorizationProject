@@ -39,9 +39,9 @@ public class UserServiceImpl implements UserService {
         .nickname(signupRequest.getNickname())
         .build();
 
-    // 권한 할당 (DB에 해당 권한이 없으면 생성)
-    Role role = roleRepository.findByName(signupRequest.getRole())
-        .orElseGet(() -> roleRepository.save(new Role(signupRequest.getRole())));
+    // 권한 할당: 클라이언트가 전달한 role을 사용하지 않고 항상 ROLE_USER로 강제 (보안 취약점 수정)
+    Role role = roleRepository.findByName("ROLE_USER")
+        .orElseGet(() -> roleRepository.save(new Role("ROLE_USER")));
 
     user.addRole(role);
 

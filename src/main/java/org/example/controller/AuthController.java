@@ -61,10 +61,12 @@ public class AuthController implements AuthApi {
   @PostMapping("/logout")
   public ResponseEntity<String> logout(
       @AuthenticationPrincipal CustomUserDetails userDetails,
+      HttpServletRequest request,
       HttpServletResponse response) {
 
     if (userDetails != null) {
-      authService.logout(userDetails.getId());
+      String accessToken = resolveToken(request);
+      authService.logout(userDetails.getUsername(), accessToken);
     }
 
     // 기존 쿠키 삭제
@@ -90,6 +92,15 @@ public class AuthController implements AuthApi {
     setRefreshTokenCookie(response, tokenResponse.getRefreshToken());
 
     return ResponseEntity.ok(tokenResponse);
+  }
+
+  // Authorization 헤더에서 Bearer 토큰 추출
+  private String resolveToken(HttpServletRequest request) {
+    String bearerToken = request.getHeader("Authorization");
+    if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+      return bearerToken.substring(7);
+    }
+    return null;
   }
 
   // Refresh Token 쿠키 설정 (HttpOnly, Secure)

@@ -95,4 +95,18 @@ public class JwtTokenProvider {
   public long getRefreshTokenExpiration() {
     return refreshTokenExpiration;
   }
+
+  /**
+   * 토큰의 남은 유효 시간을 밀리초 단위로 반환한다.
+   *
+   * <p>로그아웃 시 AT를 Blacklist에 등록할 때 TTL로 사용된다.
+   * 만료된 토큰을 전달하면 {@link io.jsonwebtoken.ExpiredJwtException}이 발생한다.
+   *
+   * @param token 검사할 JWT 문자열
+   * @return 현재 시각 기준 남은 만료 시간 (밀리초)
+   */
+  public long getRemainingExpiration(String token) {
+    Date expiration = parseClaims(token).getExpiration();
+    return expiration.getTime() - System.currentTimeMillis();
+  }
 }

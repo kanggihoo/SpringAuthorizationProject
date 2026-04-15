@@ -3,7 +3,6 @@
 ## Context
 
 Step 3까지 JWT 인증 + Google OAuth2가 완료되었지만, RT는 PostgreSQL JPA로 저장 중이고 AT Blacklist가 미구현 상태.
-Docker Compose에 Redis가 이미 실행 중이고 `spring-boot-starter-data-redis` 의존성도 있지만, Redis를 사용하는 코드가 전혀 없다.
 
 **해결할 문제:**
 1. RT 저장소를 PostgreSQL → Redis로 이전 (TTL 자동 관리)
@@ -72,11 +71,6 @@ jwt:
 app:
   oauth2:
     redirect-uri: http://localhost:3000/oauth2/callback
-```
-
-H2 의존성도 추가:
-```groovy
-testRuntimeOnly 'com.h2database:h2'
 ```
 
 ---

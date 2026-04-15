@@ -57,6 +57,7 @@ public interface AuthApi {
         @SecurityRequirement(name = "cookieAuth")
         ResponseEntity<String> logout(
                         @AuthenticationPrincipal @Parameter(hidden = true) CustomUserDetails userDetails,
+                        HttpServletRequest request,
                         HttpServletResponse response);
 
         @Operation(summary = "토큰 갱신", description = "Access Token이 만료되었을 때, 기존의 Refresh Token을 통해 새로운 Access Token과 Refresh Token을 재발급받는 API입니다.<br><br>"
