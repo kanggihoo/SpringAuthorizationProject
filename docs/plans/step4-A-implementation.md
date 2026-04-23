@@ -3,24 +3,30 @@
 ## Context
 
 Step 3까지 JWT 인증 + Google OAuth2가 완료되었지만, RT는 PostgreSQL JPA로 저장 중이고 AT Blacklist가 미구현 상태.
+필요한 의존성(build.gradle) 추가 완료 및 Docker Compose에 Redis 관련 설정은 완료.
 
 **해결할 문제:**
+
 1. RT 저장소를 PostgreSQL → Redis로 이전 (TTL 자동 관리)
 2. 로그아웃 시 AT Blacklist 등록 (로그아웃 후 AT 무효화)
 3. 회원가입 시 클라이언트가 `ROLE_ADMIN` 지정 가능한 보안 취약점 수정
 
 **TDD 규칙:**
+
 1. **껍데기 먼저** → 2. **실패 테스트(Red)** → 3. **최소 구현(Green)** → 4. **리팩토링**
+
 - 구현 없이 테스트 먼저 작성 금지 (import 에러 = Red 아님)
 - 각 단계마다 실행해서 결과 눈으로 확인
 
 **주석 규칙:**
+
 - 모든 클래스에 한국어 JavaDoc 작성 (클래스 역할, 설계 의도)
 - 핵심 비즈니스 로직에 인라인 한국어 주석
 - 기존 코드의 주석 스타일(한국어) 유지
 - 테스트 코드에도 `@DisplayName` 한국어 + 각 테스트 블록 주석
 
 **Spring Boot 4.0.2 테스트 규칙 (spring-boot-testing 스킬 참조):**
+
 - `@MockBean` → `@MockitoBean` (import: `org.springframework.test.context.bean.override.mockito.MockitoBean`)
 - `@SpyBean` → `@MockitoSpyBean`
 - `MockMvcTester` + AssertJ 스타일 assertions
@@ -32,11 +38,12 @@ Step 3까지 JWT 인증 + Google OAuth2가 완료되었지만, RT는 PostgreSQL 
 
 ## 사전 준비
 
-### 0-1. build.gradle 의존성 추가
+### 0-1. build.gradle 의존성 추가(추가 완료)
 
 **파일:** `build.gradle`
 
 추가할 의존성:
+
 ```groovy
 testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'  // @DataRedisTest 슬라이스
@@ -44,34 +51,7 @@ testRuntimeOnly 'com.redis:testcontainers-redis:2.2.4'  // Testcontainers Redis 
 ```
 
 > Spring Boot 4.0에서는 Testcontainers 2.0 네이밍을 사용.
-
-### 0-2. src/test/resources/application-test.yml 생성
-
-**파일:** `src/test/resources/application-test.yml`
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    database-platform: org.hibernate.dialect.H2Dialect
-  security:
-    oauth2:
-      client:
-        registration: {}
-jwt:
-  secret: dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW11c3QtYmUtYXQtbGVhc3QtMzItYnl0ZXMtbG9uZw==
-  access-token-expiration: 3600000
-  refresh-token-expiration: 604800000
-app:
-  oauth2:
-    redirect-uri: http://localhost:3000/oauth2/callback
-```
+> DB(postgresql) redis 테스트 코드작성시 TestContainer 이용
 
 ---
 
@@ -97,6 +77,7 @@ app:
 ### 1-3. Green — SignupRequest, UserServiceImpl 수정
 
 **수정 파일:**
+
 - `dto/request/SignupRequest.java` — `role` 필드 제거
 - `service/UserServiceImpl.java` — `signupRequest.getRole()` → `"ROLE_USER"` 하드코딩
 
@@ -116,6 +97,7 @@ app:
 ### 2-1. 껍데기 — RedisConfig, TokenRedisRepository 생성
 
 **생성 파일:**
+
 - `config/RedisConfig.java` — `@Configuration`, `RedisTemplate<String, String>` 빈 (빈 메서드 껍데기)
 - `repository/TokenRedisRepository.java` — `@Repository`, 메서드 시그니처만 (모두 빈 구현)
 
@@ -150,9 +132,11 @@ boolean isBlacklisted(String accessToken);
 ### 2-3. Green — RedisConfig, TokenRedisRepository 구현
 
 **RedisConfig:**
+
 - `StringRedisTemplate` 또는 `RedisTemplate<String, String>` 빈 등록
 
 **TokenRedisRepository:**
+
 - `StringRedisTemplate` 주입
 - RT 키 패턴: `RT:{userId}`, BL 키 패턴: `BL:{accessToken}`
 - `ValueOperations.set(key, value, timeout, TimeUnit)` 사용
@@ -443,6 +427,7 @@ if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
 ### 9-1. RefreshToken 엔티티 + Repository 제거
 
 **삭제 파일:**
+
 - `domain/entity/RefreshToken.java`
 - `repository/RefreshTokenRepository.java`
 
@@ -471,36 +456,35 @@ docker-compose up -d
 
 ## 파일 변경 요약
 
-| 순서 | 작업 | 파일 | 변경 유형 |
-|------|------|------|-----------|
-| 0 | 의존성 | `build.gradle` | 수정 |
-| 0 | 테스트 설정 | `src/test/resources/application-test.yml` | 신규 |
-| 1 | role 보안 수정 | `dto/request/SignupRequest.java` | 수정 |
-| 1 | role 보안 수정 | `service/UserServiceImpl.java` | 수정 |
-| 2 | Redis 인프라 | `config/RedisConfig.java` | 신규 |
-| 2 | Redis 인프라 | `repository/TokenRedisRepository.java` | 신규 |
-| 3 | JWT TTL | `security/jwt/JwtTokenProvider.java` | 수정 |
-| 4 | Auth Redis전환 | `service/AuthService.java` | 수정 |
-| 4 | Auth Redis전환 | `service/AuthServiceImpl.java` | 수정 |
-| 5 | Controller | `controller/AuthController.java` | 수정 |
-| 6 | Blacklist 필터 | `security/jwt/JwtAuthenticationFilter.java` | 수정 |
-| 7 | OAuth2 Redis전환 | `security/oauth2/OAuth2AuthenticationSuccessHandler.java` | 수정 |
-| 8 | 예외 세분화 | `exception/GlobalExceptionHandler.java` | 수정 |
-| 9 | 제거 | `domain/entity/RefreshToken.java` | 삭제 |
-| 9 | 제거 | `repository/RefreshTokenRepository.java` | 삭제 |
+| 순서 | 작업             | 파일                                                      | 변경 유형 |
+| ---- | ---------------- | --------------------------------------------------------- | --------- |
+| 0    | 의존성           | `build.gradle`                                            | 수정      |
+| 1    | role 보안 수정   | `dto/request/SignupRequest.java`                          | 수정      |
+| 1    | role 보안 수정   | `service/UserServiceImpl.java`                            | 수정      |
+| 2    | Redis 인프라     | `config/RedisConfig.java`                                 | 신규      |
+| 2    | Redis 인프라     | `repository/TokenRedisRepository.java`                    | 신규      |
+| 3    | JWT TTL          | `security/jwt/JwtTokenProvider.java`                      | 수정      |
+| 4    | Auth Redis전환   | `service/AuthService.java`                                | 수정      |
+| 4    | Auth Redis전환   | `service/AuthServiceImpl.java`                            | 수정      |
+| 5    | Controller       | `controller/AuthController.java`                          | 수정      |
+| 6    | Blacklist 필터   | `security/jwt/JwtAuthenticationFilter.java`               | 수정      |
+| 7    | OAuth2 Redis전환 | `security/oauth2/OAuth2AuthenticationSuccessHandler.java` | 수정      |
+| 8    | 예외 세분화      | `exception/GlobalExceptionHandler.java`                   | 수정      |
+| 9    | 제거             | `domain/entity/RefreshToken.java`                         | 삭제      |
+| 9    | 제거             | `repository/RefreshTokenRepository.java`                  | 삭제      |
 
 ### 테스트 파일 (신규)
 
-| 파일 | 테스트 유형 | 대상 |
-|------|-------------|------|
-| `service/UserServiceImplTest.java` | 단위 (@Mock) | role 보안 수정 |
-| `repository/TokenRedisRepositoryTest.java` | 통합 (Testcontainers) | Redis RT/BL |
-| `security/jwt/JwtTokenProviderTest.java` | 단위 (순수) | getRemainingExpiration |
-| `service/AuthServiceImplTest.java` | 단위 (@Mock) | login/logout/refresh |
-| `controller/AuthControllerTest.java` | 슬라이스 (@WebMvcTest) | 엔드포인트 |
-| `security/jwt/JwtAuthenticationFilterTest.java` | 단위 (@Mock) | Blacklist 필터 |
-| `security/oauth2/OAuth2AuthenticationSuccessHandlerTest.java` | 단위 (@Mock) | OAuth2 RT Redis |
-| `exception/GlobalExceptionHandlerTest.java` | 단위 (순수) | 예외 세분화 |
+| 파일                                                          | 테스트 유형            | 대상                   |
+| ------------------------------------------------------------- | ---------------------- | ---------------------- |
+| `service/UserServiceImplTest.java`                            | 단위 (@Mock)           | role 보안 수정         |
+| `repository/TokenRedisRepositoryTest.java`                    | 통합 (Testcontainers)  | Redis RT/BL            |
+| `security/jwt/JwtTokenProviderTest.java`                      | 단위 (순수)            | getRemainingExpiration |
+| `service/AuthServiceImplTest.java`                            | 단위 (@Mock)           | login/logout/refresh   |
+| `controller/AuthControllerTest.java`                          | 슬라이스 (@WebMvcTest) | 엔드포인트             |
+| `security/jwt/JwtAuthenticationFilterTest.java`               | 단위 (@Mock)           | Blacklist 필터         |
+| `security/oauth2/OAuth2AuthenticationSuccessHandlerTest.java` | 단위 (@Mock)           | OAuth2 RT Redis        |
+| `exception/GlobalExceptionHandlerTest.java`                   | 단위 (순수)            | 예외 세분화            |
 
 ---
 
