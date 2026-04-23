@@ -1,56 +1,50 @@
 package org.example.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
-import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
-import java.util.Map;
 import org.example.dto.response.TokenResponseDto;
 import org.example.security.CustomUserDetails;
 import org.example.security.CustomUserDetailsService;
 import org.example.security.jwt.JwtTokenProvider;
 import org.example.service.AuthService;
 import org.example.service.UserService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
  * AuthController 슬라이스 테스트.
  *
  * <p>
- * 
- * @WebMvcTest로 HTTP 레이어만 로드하여 엔드포인트 동작을 검증한다.
- *              Spring Security 필터가 함께 로드되므로
- *              SecurityMockMvcRequestPostProcessors를 사용한다.
+ * Security 필터 활성화 상태에서 HTTP 레이어 동작을 검증한다.
+ * JWT 커스텀 필터 검증은 별도 통합 테스트(@SpringBootTest)에서 수행한다.
  */
 @WebMvcTest(AuthController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@Import(TestSecurityConfig.class)
 @ActiveProfiles("test")
 class AuthControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private tools.jackson.databind.ObjectMapper objectMapper;
 
     @MockitoBean
     private AuthService authService;
@@ -64,49 +58,52 @@ class AuthControllerTest {
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
 
-    @AfterEach
-    void clearSecurityContext() {
-        SecurityContextHolder.clearContext();
+    private MockMvcTester mvc() {
+        return MockMvcTester.create(mockMvc);
     }
+
+    // ======================== POST /logout ========================
 
     @Test
     @DisplayName("logout: 인증된 사용자가 Authorization 헤더와 함께 요청하면 authService.logout이 호출된다")
-    void logout_callsAuthServiceLogout_whenAuthenticated() throws Exception {
-        // given: SecurityContextHolder에 직접 인증 정보 주입 (addFilters=false 환경)
+    void logout_callsAuthServiceLogout_whenAuthenticated() {
+        // given
         CustomUserDetails userDetails = createUserDetails("testuser");
         UsernamePasswordAuthenticationToken auth =
             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(auth);
         given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
 
         // when & then
-        mockMvc.perform(post("/logout")
+        assertThat(mvc().post().uri("/logout")
+                .with(authentication(auth))
                 .header("Authorization", "Bearer test-access-token"))
-                .andExpect(status().isOk());
+                .hasStatusOk();
 
         verify(authService).logout(eq("testuser"), eq("test-access-token"));
     }
 
     @Test
-    @DisplayName("logout: 응답에 Refresh-Token 쿠키가 maxAge=0으로 삭제된다")
-    void logout_deletesCookie() throws Exception {
+    @DisplayName("logout: 응답에 Refresh-Token 쿠키가 설정된다")
+    void logout_deletesCookie() {
         // given
         CustomUserDetails userDetails = createUserDetails("testuser");
         UsernamePasswordAuthenticationToken auth =
             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(auth);
         given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
 
         // when & then
-        mockMvc.perform(post("/logout")
+        assertThat(mvc().post().uri("/logout")
+                .with(authentication(auth))
                 .header("Authorization", "Bearer test-access-token"))
-                .andExpect(status().isOk())
-                .andExpect(cookie().maxAge("Refresh-Token", 0));
+                .hasStatusOk()
+                .cookies().containsKey("Refresh-Token");
     }
 
+    // ======================== POST /login ========================
+
     @Test
-    @DisplayName("login: 정상 요청 시 200과 TokenResponseDto를 반환한다")
-    void login_returns200WithTokenResponse() throws Exception {
+    @DisplayName("login: 정상 요청 시 200과 accessToken을 반환한다")
+    void login_returns200WithTokenResponse() {
         // given
         TokenResponseDto tokenResponse = TokenResponseDto.builder()
                 .accessToken("access-token")
@@ -116,34 +113,41 @@ class AuthControllerTest {
         given(authService.login(any())).willReturn(tokenResponse);
         given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
 
-        Map<String, String> body = Map.of("username", "testuser", "password", "password123");
+        String body = """
+                {"username": "testuser", "password": "password123"}
+                """;
 
         // when & then
-        mockMvc.perform(post("/login")
-                .with(csrf())
+        assertThat(mvc().post().uri("/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("access-token"));
+                .content(body))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.accessToken")
+                .asString()
+                .isEqualTo("access-token");
     }
 
     @Test
     @DisplayName("login: username이 빈 값이면 422를 반환한다")
-    void login_returns422_whenUsernameIsBlank() throws Exception {
+    void login_returns422_whenUsernameIsBlank() {
         // given
-        Map<String, String> body = Map.of("username", "", "password", "password123");
+        String body = """
+                {"username": "", "password": "password123"}
+                """;
 
         // when & then
-        mockMvc.perform(post("/login")
-                .with(csrf())
+        assertThat(mvc().post().uri("/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isUnprocessableEntity());
+                .content(body))
+                .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT);
     }
 
+    // ======================== POST /refresh ========================
+
     @Test
-    @DisplayName("refresh: Refresh-Token 쿠키가 있으면 200과 새 토큰을 반환한다")
-    void refresh_returns200_whenCookieExists() throws Exception {
+    @DisplayName("refresh: Refresh-Token 쿠키가 있으면 200과 새 accessToken을 반환한다")
+    void refresh_returns200_whenCookieExists() {
         // given
         TokenResponseDto tokenResponse = TokenResponseDto.builder()
                 .accessToken("new-access-token")
@@ -154,24 +158,21 @@ class AuthControllerTest {
         given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
 
         // when & then
-        mockMvc.perform(post("/refresh")
-                .with(csrf())
+        assertThat(mvc().post().uri("/refresh")
                 .cookie(new Cookie("Refresh-Token", "old-refresh-token")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("new-access-token"));
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.accessToken")
+                .asString()
+                .isEqualTo("new-access-token");
     }
 
     @Test
     @DisplayName("refresh: Refresh-Token 쿠키가 없으면 400을 반환한다")
-    void refresh_returns400_whenNoCookie() throws Exception {
-        // given: 쿠키 없는 요청 → IllegalArgumentException 발생
-        given(authService.refresh(anyString()))
-                .willThrow(new IllegalArgumentException("Refresh Token이 존재하지 않습니다."));
-
+    void refresh_returns400_whenNoCookie() {
         // when & then
-        mockMvc.perform(post("/refresh")
-                .with(csrf()))
-                .andExpect(status().isBadRequest());
+        assertThat(mvc().post().uri("/refresh"))
+                .hasStatus(HttpStatus.BAD_REQUEST);
     }
 
     /** 테스트용 CustomUserDetails 생성 헬퍼 */

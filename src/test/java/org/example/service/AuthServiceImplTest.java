@@ -9,10 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.example.domain.entity.Role;
 import org.example.domain.entity.User;
 import org.example.dto.request.LoginRequestDto;
@@ -31,10 +28,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+
 /**
  * AuthServiceImpl 순수 단위 테스트.
  *
- * <p>Spring Context 없이 Mockito만 사용하여 login/logout/refresh 비즈니스 로직을 검증한다.
+ * <p>
+ * Spring Context 없이 Mockito만 사용하여 login/logout/refresh 비즈니스 로직을 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
@@ -58,51 +59,34 @@ class AuthServiceImplTest {
 
     @Test
     @DisplayName("정상 로그인 시 tokenRedisRepository.saveRefreshToken이 호출된다")
-    void login_callsSaveRefreshToken() throws Exception {
+    void login_callsSaveRefreshToken() {
         // given
-        LoginRequestDto request = createLoginRequest("testuser", "password123");
-
-        User user = User.builder().username("testuser").password("encoded").nickname("테스터").build();
-        CustomUserDetails userDetails = new CustomUserDetails(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-        given(authenticationManager.authenticate(any())).willReturn(auth);
-        given(jwtTokenProvider.generateAccessToken(anyString(), any())).willReturn("access-token");
-        given(jwtTokenProvider.generateRefreshToken(anyString())).willReturn("refresh-token");
-        given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
+        setupLoginMocks();
 
         // when
-        authServiceImpl.login(request);
+        authServiceImpl.login(createLoginRequest("testuser", "password123"));
 
         // then: Redis에 RT 저장 호출 검증
         verify(tokenRedisRepository).saveRefreshToken(
-            eq("testuser"),
-            eq("refresh-token"),
-            anyLong()
-        );
+                eq("testuser"),
+                eq("refresh-token"),
+                anyLong());
     }
 
     @Test
     @DisplayName("정상 로그인 시 AT와 RT가 포함된 TokenResponseDto를 반환한다")
-    void login_returnsTokenResponse() throws Exception {
+    void login_returnsTokenResponse() {
         // given
-        LoginRequestDto request = createLoginRequest("testuser", "password123");
-
-        User user = User.builder().username("testuser").password("encoded").nickname("테스터").build();
-        CustomUserDetails userDetails = new CustomUserDetails(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-        given(authenticationManager.authenticate(any())).willReturn(auth);
-        given(jwtTokenProvider.generateAccessToken(anyString(), any())).willReturn("access-token");
-        given(jwtTokenProvider.generateRefreshToken(anyString())).willReturn("refresh-token");
-        given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
+        setupLoginMocks();
 
         // when
-        TokenResponseDto result = authServiceImpl.login(request);
+        TokenResponseDto result = authServiceImpl.login(createLoginRequest("testuser", "password123"));
 
         // then
-        assertThat(result.getAccessToken()).isEqualTo("access-token");
-        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");
+        assertThat(result).satisfies(r -> {
+            assertThat(r.getAccessToken()).isEqualTo("access-token");
+            assertThat(r.getRefreshToken()).isEqualTo("refresh-token");
+        });
     }
 
     // ======================== logout 테스트 ========================
@@ -141,10 +125,7 @@ class AuthServiceImplTest {
         // given
         String oldRt = "old-refresh-token";
         String username = "testuser";
-
-        // Claims mock을 먼저 완성한 뒤 willReturn에 전달 (stubbing 중첩 방지)
-        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
-        org.mockito.Mockito.when(claims.getSubject()).thenReturn(username);
+        Claims claims = buildClaims(username);
 
         Role role = new Role("ROLE_USER");
         User user = User.builder().username(username).password("encoded").nickname("테스터").build();
@@ -161,8 +142,10 @@ class AuthServiceImplTest {
         TokenResponseDto result = authServiceImpl.refresh(oldRt);
 
         // then
-        assertThat(result.getAccessToken()).isEqualTo("new-access-token");
-        assertThat(result.getRefreshToken()).isEqualTo("new-refresh-token");
+        assertThat(result).satisfies(r -> {
+            assertThat(r.getAccessToken()).isEqualTo("new-access-token");
+            assertThat(r.getRefreshToken()).isEqualTo("new-refresh-token");
+        });
         verify(tokenRedisRepository).saveRefreshToken(eq(username), eq("new-refresh-token"), anyLong());
     }
 
@@ -171,15 +154,14 @@ class AuthServiceImplTest {
     void refresh_throwsException_whenRtNotFoundInRedis() {
         // given
         String oldRt = "not-stored-token";
-        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
-        org.mockito.Mockito.when(claims.getSubject()).thenReturn("testuser");
+        Claims claims = buildClaims("testuser");
 
         given(jwtTokenProvider.parseClaims(oldRt)).willReturn(claims);
         given(tokenRedisRepository.findRefreshToken("testuser")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> authServiceImpl.refresh(oldRt))
-            .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -188,28 +170,39 @@ class AuthServiceImplTest {
         // given
         String oldRt = "old-token";
         String storedRt = "different-stored-token";
-        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
-        org.mockito.Mockito.when(claims.getSubject()).thenReturn("testuser");
+        Claims claims = buildClaims("testuser");
 
         given(jwtTokenProvider.parseClaims(oldRt)).willReturn(claims);
         given(tokenRedisRepository.findRefreshToken("testuser")).willReturn(Optional.of(storedRt));
 
         // when & then
         assertThatThrownBy(() -> authServiceImpl.refresh(oldRt))
-            .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** 테스트용 LoginRequestDto 생성 헬퍼 (Setter 없으므로 Reflection 사용) */
-    private LoginRequestDto createLoginRequest(String username, String password) throws Exception {
-        LoginRequestDto dto = new LoginRequestDto();
-        Field usernameField = LoginRequestDto.class.getDeclaredField("username");
-        usernameField.setAccessible(true);
-        usernameField.set(dto, username);
-        Field passwordField = LoginRequestDto.class.getDeclaredField("password");
-        passwordField.setAccessible(true);
-        passwordField.set(dto, password);
-        return dto;
+    // ======================== 헬퍼 메서드 ========================
+
+    private LoginRequestDto createLoginRequest(String username, String password) {
+        return LoginRequestDto.builder()
+                .username(username)
+                .password(password)
+                .build();
     }
 
+    /** login 테스트에서 공통으로 사용되는 stub 설정 */
+    private void setupLoginMocks() {
+        User user = User.builder().username("testuser").password("encoded").nickname("테스터").build();
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
+        given(authenticationManager.authenticate(any())).willReturn(auth);
+        given(jwtTokenProvider.generateAccessToken(anyString(), any())).willReturn("access-token");
+        given(jwtTokenProvider.generateRefreshToken(anyString())).willReturn("refresh-token");
+        given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
+    }
+
+    /** 실제 JJWT Claims 빌더로 생성 — 외부 라이브러리 내부 객체 mocking 회피 */
+    private Claims buildClaims(String username) {
+        return Jwts.claims().subject(username).build();
+    }
 }
