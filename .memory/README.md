@@ -10,7 +10,7 @@
 1. `current-state.md`
 2. `tasks.md`
 3. `decisions.md`
-4. `conventions.md`
+4. `conventions.md`a
 
 ## 문서 역할
 
@@ -18,18 +18,6 @@
 - `tasks.md`: 다음에 실행할 작업 큐
 - `decisions.md`: 반복하면 안 되는 설계/테스트 결정
 - `conventions.md`: 이 프로젝트에서 AI가 따라야 하는 작업 규칙
-
-## 관련 긴 문서
-
-- `docs/memory/project-context.md`: 기존 AI 메모리. 일부 오래된 정보가 있을 수 있으므로 `.memory/`를 우선한다.
-- `docs/memory/project-status.md`: Step 2 기준의 오래된 상태 문서. 최신 상태 판단에는 Step 3/4 문서를 우선한다.
-- `docs/archive/completed-plans/step2.md`: JWT 무상태 인증, RTR, 예외 위임 구조.
-- `docs/archive/completed-plans/step3(Oauth2).md`: Google OAuth2, Docker Compose, OAuth2 추상화, Success/FailureHandler.
-- `docs/plans/step4-7-roadmap.md`: Step 4~7 전체 로드맵.
-- `docs/plans/step4-A-handover.md`: Step 4-A에서 바로 이어받을 위치.
-- `docs/plans/step4-A-troubleshooting.md`: Step 4-A 테스트/구현 중 발생한 문제와 해결.
-- `docs/review/testCodeReview.md`: 테스트 개선 방향과 채택된 결정.
-- `docs/review/retrospective-test.md`: AuthControllerTest 302 문제 회고.
 
 ## 운영 규칙
 

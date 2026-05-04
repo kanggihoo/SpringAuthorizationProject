@@ -1,51 +1,32 @@
-# Conventions
+# Project Conventions & AI Directives
 
-## Memory
+이 문서는 프로젝트 전체를 관통하는 핵심 코딩 표준과 AI가 반드시 지켜야 할 규칙을 정의합니다.
 
-- `.memory/`는 짧은 handoff 용도다.
-- 긴 구현 설명은 `docs/`에 둔다.
-- 완료된 세부 구현은 source code와 git history에서 확인한다.
-- `docs/memory/project-status.md`처럼 오래된 상태 문서가 있으면 최신 Step 문서를 우선한다.
-- 작업 종료 시 `current-state.md`와 `tasks.md`를 갱신한다.
+## 1. 개발/테스트 방법론 (TDD)
 
-## Project Style
+- **Strict TDD (4단계)**: `껍데기(인터페이스/빈메서드) 생성` → `실패하는 테스트 작성(Red)` → `최소 구현으로 통과(Green)` → `리팩토링`.
+- 절대 테스트 코드 없이 프로덕션 코드를 먼저 작성하지 않습니다.
 
-- 한국어 JavaDoc과 `@DisplayName` 스타일이 기존 문서의 기본 방향이다.
-- constructor injection을 사용한다.
-- Controller는 얇게 유지한다.
-- Entity와 DTO를 분리한다.
-- Entity를 API response로 직접 반환하지 않는다.
-- Entity의 무분별한 setter 대신 비즈니스 메서드로 상태를 바꾼다.
-- 예외는 `GlobalExceptionHandler`, Security entry point/denied handler, filter exception delegation 구조와 충돌하지 않게 처리한다.
+## 2. Spring Boot 4.0.2 특화 규칙
 
-## Security
+- **Mocking**: `@MockBean`, `@SpyBean`은 폐기되었습니다. **반드시 `@MockitoBean`, `@MockitoSpyBean`을 사용**합니다. (import: `org.springframework.test.context.bean.override.mockito.MockitoBean`)
+- **WebMvcTest**: `MockMvc` 대신 **`MockMvcTester`와 AssertJ 스타일**을 조합하여 검증합니다.
+- **단위 테스트**: Service 계층 테스트는 Spring Context를 띄우지 않는 순수 단위 테스트(`@Mock`, `@InjectMocks`)를 원칙으로 합니다.
 
-- 세션 기반 인증으로 되돌리지 않는다.
-- 기본 정책은 stateless JWT다.
-- AT/RT 책임을 명확히 분리한다.
-- RT는 HttpOnly cookie로 전달한다.
-- 로그아웃은 RT 삭제와 AT blacklist 등록을 모두 수행해야 한다.
-- OAuth2 callback/state는 session이 아니라 cookie repository 기준으로 본다.
-- 새 OAuth2 provider 추가 시 core auth flow보다 `OAuth2UserInfo` 구현체와 factory 확장을 우선한다.
+## 3. Agent Skills (필수 참고)
 
-## Testing
+- **테스트 코드 작성 시**: 최신 버전(Spring Boot 4, Spring Security 7)에 맞는 정확한 코드를 작성하기 위해 **`spring-boot-testing` 스킬과 `spring-security-7` 스킬을 반드시 최우선으로 참고**하여 적용합니다.
+- **Git Commit 메시지 작성 시**: 커밋을 수행하거나 메시지를 작성할 때는 반드시 **`git-commit` 스킬을 활용**하여 프로젝트의 일관된 커밋 규칙을 따릅니다.
 
-- 구현 없이 import 에러만 나는 테스트를 Red로 보지 않는다.
-- 한 번에 하나의 원인만 수정하고 검증한다.
-- 예상과 다른 HTTP status가 나오면 먼저 response header, 특히 `Location`을 확인한다.
-- `@AuthenticationPrincipal CustomUserDetails` 테스트에는 `@WithMockUser`를 무리하게 쓰지 않는다.
-- controller slice에서 JWT 필터까지 검증하려 하지 않는다.
-- JWT 필터 검증은 별도 security/integration test로 둔다.
-- `TokenResponseDto.refreshToken`이 `@JsonIgnore`이면 response body가 아니라 cookie/header로 검증한다.
+## 4. 아키텍처 및 디자인 패턴
 
-## Commands
+- **Stateless**: 어떠한 경우에도 세션(`HttpSession`)을 활용한 인증/상태 저장을 하지 않습니다. `SessionCreationPolicy.STATELESS` 유지.
+- **의존성 주입**: 생성자 주입만 허용하며 `@Autowired`는 사용하지 않습니다. (Lombok `@RequiredArgsConstructor` 활용)
+- **Entity & DTO 분리**: Entity를 Controller의 응답으로 절대 직접 반환하지 않습니다. 반드시 DTO로 변환합니다.
+- **Entity 무결성**: 무의미한 `@Setter`를 전면 금지합니다. 상태 변경은 의미 있는 비즈니스 메서드(ex: `incrementFailureCount()`)를 통해 수행합니다.
 
-- Windows 환경이므로 Gradle은 보통 `./gradlew.bat` 또는 PowerShell에서 `./gradlew`를 사용한다.
-- 문서의 bash 예시는 Windows PowerShell에 맞게 조정한다.
-- 테스트 실행 예시는 필요 시 checkstyle을 제외할 수 있다.
+## 5. 문서화 및 코드 스타일
 
-```powershell
-./gradlew test --tests "org.example.security.jwt.JwtAuthenticationFilterTest" -x checkstyleMain -x checkstyleTest
-./gradlew test --tests "org.example.security.oauth2.OAuth2AuthenticationSuccessHandlerTest" -x checkstyleMain -x checkstyleTest
-./gradlew test --tests "org.example.exception.GlobalExceptionHandlerTest" -x checkstyleMain -x checkstyleTest
-```
+- **주석 (필수)**: 모든 클래스와 복잡한 비즈니스 메서드에는 **한국어 JavaDoc** 및 인라인 주석을 작성합니다.
+- **테스트 명세**: 테스트 코드 메서드에는 반드시 `@DisplayName`을 사용하여 한국어로 테스트 목적을 명확히 적습니다.
+- **명명 규칙**: Redis 키는 대문자 접두사와 콜론(`:`)을 조합합니다. (예: `RT:{username}`, `BL:{accessToken}`)
