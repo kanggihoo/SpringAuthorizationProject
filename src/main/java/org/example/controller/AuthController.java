@@ -1,28 +1,28 @@
 package org.example.controller;
 
+import java.util.Arrays;
+import java.util.Optional;
+
+import org.example.controller.docs.AuthApi;
+import org.example.dto.request.LoginRequestDto;
+import org.example.dto.request.SignupRequest;
+import org.example.dto.response.TokenResponseDto;
+import org.example.security.CustomUserDetails;
+import org.example.security.jwt.JwtTokenProvider;
+import org.example.service.AuthService;
+import org.example.service.UserService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.dto.request.SignupRequest;
-import org.example.dto.request.LoginRequestDto;
-import org.example.dto.response.TokenResponseDto;
-import org.example.service.UserService;
-import org.example.dto.request.LoginRequestDto;
-import org.example.dto.response.TokenResponseDto;
-import org.example.security.CustomUserDetails;
-import org.example.security.jwt.JwtTokenProvider;
-import org.example.service.AuthService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Arrays;
-import java.util.Optional;
-
-import org.example.controller.docs.AuthApi;
 
 @Slf4j
 @RestController
