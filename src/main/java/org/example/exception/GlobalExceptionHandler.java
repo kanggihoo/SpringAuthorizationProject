@@ -1,32 +1,43 @@
 package org.example.exception;
 
+import io.jsonwebtoken.JwtException;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import io.jsonwebtoken.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * 전역 예외 처리기 => 이후에 동일한 형식으로 반환하면 좋을듯?
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  /**
-   * 비즈니스 로직 예외 처리(400에러)
-   */
+  @ExceptionHandler(BadCredentialsException.class)
+  public ResponseEntity<Map<String, String>> handleBadCredentialsException(BadCredentialsException ex) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(errorResponse("Unauthorized", "아이디 또는 비밀번호가 올바르지 않습니다."));
+  }
+
+  @ExceptionHandler(LockedException.class)
+  public ResponseEntity<Map<String, String>> handleLockedException(LockedException ex) {
+    return ResponseEntity.status(HttpStatus.LOCKED)
+        .body(errorResponse("Locked", "계정이 잠겼습니다. 관리자에게 문의하세요."));
+  }
+
+  @ExceptionHandler(DisabledException.class)
+  public ResponseEntity<Map<String, String>> handleDisabledException(DisabledException ex) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(errorResponse("Forbidden", "비활성화된 계정입니다."));
+  }
+
   @ExceptionHandler(RuntimeException.class)
   public ResponseEntity<String> handleRuntimeException(RuntimeException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
   }
 
-  /**
-   * 입력값 검증(@Valid) 예외 처리(422)
-   */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
     Map<String, String> errors = new HashMap<>();
@@ -36,22 +47,21 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(errors);
   }
 
-  /**
-   * JWT 관련 인증(토큰) 예외 처리(401) = > 403 에러가 없네??
-   */
   @ExceptionHandler(JwtException.class)
-  public ResponseEntity<Map<String, String>> handleJwtExceptions(io.jsonwebtoken.JwtException ex) {
-    Map<String, String> errors = new HashMap<>();
-    errors.put("error", "Invalid Token");
-    errors.put("message", ex.getMessage());
-    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errors);
+  public ResponseEntity<Map<String, String>> handleJwtExceptions(JwtException ex) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(errorResponse("Invalid Token", ex.getMessage()));
   }
 
-  /**
-   * 일반적인 예외 처리
-   */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<String> handleException(Exception e) {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("서버 내부 오류가 발생했습니다.");
+  }
+
+  private Map<String, String> errorResponse(String error, String message) {
+    Map<String, String> errors = new HashMap<>();
+    errors.put("error", error);
+    errors.put("message", message);
+    return errors;
   }
 }

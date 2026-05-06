@@ -1,5 +1,8 @@
 package org.example.security.jwt;
 
+import static org.mockito.Mockito.mock;
+
+import org.example.repository.TokenRedisRepository;
 import org.example.security.CustomUserDetailsService;
 import org.example.security.exception.CustomAccessDeniedHandler;
 import org.example.security.exception.CustomAuthenticationEntryPoint;
@@ -28,9 +31,15 @@ class JwtSecurityTestConfig {
     @Bean
     JwtAuthenticationFilter jwtAuthenticationFilter(
         JwtTokenProvider jwtTokenProvider,
-        CustomUserDetailsService customUserDetailsService
+        CustomUserDetailsService customUserDetailsService,
+        TokenRedisRepository tokenRedisRepository
     ) {
-        return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
+        return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService, tokenRedisRepository);
+    }
+
+    @Bean
+    TokenRedisRepository tokenRedisRepository() {
+        return mock(TokenRedisRepository.class);
     }
 
     @Bean

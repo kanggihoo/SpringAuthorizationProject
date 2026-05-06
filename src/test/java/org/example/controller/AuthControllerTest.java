@@ -11,6 +11,7 @@ import org.example.domain.entity.User;
 import org.example.dto.request.LoginRequestDto;
 import org.example.dto.request.SignupRequest;
 import org.example.dto.response.TokenResponseDto;
+import org.example.repository.TokenRedisRepository;
 import org.example.security.CustomUserDetails;
 import org.example.security.CustomUserDetailsService;
 import org.example.security.jwt.JwtTokenProvider;
@@ -64,6 +65,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockitoBean
+    private TokenRedisRepository tokenRedisRepository;
 
     // ======================== POST /logout ========================
 
