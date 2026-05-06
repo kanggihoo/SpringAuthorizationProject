@@ -13,7 +13,7 @@ spring:
     hibernate:
       # 개발 단계에서 스키마 자동 업데이트 (생성/기존 유지/변경사항 반영)
       ddl-auto: update
-    show-sql: true # 실행되는 SQL을 콘솔에 출력
+    show-sql: false # 실행되는 SQL을 콘솔에 출력
     properties:
       hibernate:
         format_sql: true # 출력되는 SQL을 보기 좋게 포맷팅
