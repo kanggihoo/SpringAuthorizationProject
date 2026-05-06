@@ -87,6 +87,7 @@ public class SecurityConfig {
         // Form Login 및 HTTP Basic 비활성화 (REST API + OAuth2 사용)
         .formLogin(AbstractHttpConfigurer::disable)
         .httpBasic(AbstractHttpConfigurer::disable)
+        .logout(AbstractHttpConfigurer::disable)
 
         // 세션 관리: 무상태(Stateless) 설정 — OAuth2 state는 쿠키로 관리
         .sessionManagement(session ->

@@ -21,14 +21,17 @@ Spring Boot 4 기반 인증/인가 학습 프로젝트다.
 - `JwtAuthenticationFilter` 는 유효한 JWT라도 blacklist 등록 토큰이면 인증을 주입하지 않는다.
 - `GlobalExceptionHandler` 는 인증 실패 예외를 `401/423/403` 으로 세분화한다.
 - JPA 기반 `RefreshToken` 엔티티와 `RefreshTokenRepository` 는 제거됐다.
+- `User` 엔티티의 Lombok builder 충돌을 수정하여 OAuth2 유저가 `provider=GOOGLE`, `email`, `providerId`를 정상 저장한다.
+- Spring Security 기본 logout 을 비활성화하여 `/logout` 은 `AuthController` 의 `POST /logout`만 처리한다.
+- `frontend/` 는 인증 데모 콘솔 화면으로 갱신되었고 `/signup`, `/login`, Google OAuth2, `/refresh`, `/logout`, `/user/profile`, `/admin/manage`를 직접 호출할 수 있다.
+- blacklist 동작은 `BL:{accessToken}` 키 존재 + 같은 AT로 `/user/profile` 요청 시 `401` 응답으로 검증됐다.
 
 ## 바로 볼 문서
 
 다음 작업 시작 전 우선 확인:
 1. `docs/plans/step4-7-roadmap.md`
-2. `docs/review/testCodeReview.md`
-3. `docs/review/retrospective-test.md`
-4. 필요 시 `docs/plans/step4-A-troubleshooting.md`
+2. `docs/review/retrospective-test.md`
+3. 필요 시 `docs/plans/step4-A-troubleshooting.md`
 
 Step 4-A 구현 결과 확인용:
 1. `docs/plans/step4-A-handover.md`
@@ -39,7 +42,10 @@ Step 4-A 구현 결과 확인용:
 - 작업 시작 전 `git status --short` 로 사용자 변경사항을 먼저 확인한다.
 - `.memory/` 는 최신 handoff 용도이며, 오래된 `docs/memory/project-status.md` 보다 우선한다.
 - controller slice 테스트는 JWT 필터 동작 자체를 검증하지 않는다. JWT 필터 검증은 별도 security 테스트에서 다룬다.
+- OAuth2 성공 핸들러 내부 principal 은 `CustomOAuth2User` 이지만, 로그인 완료 후 JWT 기반 보호 API 요청에서는 `JwtAuthenticationFilter` 가 `CustomUserDetails` 를 다시 생성하므로 `@AuthenticationPrincipal CustomUserDetails` 를 사용한다.
 
 ## 다음 진입점
 
 `tasks.md` 의 `Now` 부터 시작한다.
+
+

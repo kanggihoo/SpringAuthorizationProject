@@ -2,13 +2,19 @@
 
 ## Now
 
+- 인증 흐름 수동 검증 마무리.
+  - 로컬 회원가입 -> 로그인 -> `/user/profile` -> `/refresh` -> `/logout` 순서 검증
+  - Google OAuth2 로그인 -> `/user/profile` -> `/refresh` -> `/logout` 순서 검증
+  - 기존 Google 유저 재로그인 시 중복 row 생성 없이 기존 user 재사용 확인
+  - logout 후 Redis `RT:{username}` 삭제, `BL:{accessToken}` 생성, 같은 AT로 `/user/profile` `401` 확인
+  - `/admin/manage` 접근 시 일반 유저 `403` 확인
+
+## Next
+
 - Step 4-B 범위 정리 시작.
   - 로그인 실패 5회 계정 잠금
   - 잠긴 계정 Access Token 즉시 차단
   - 관리자 unlock API
-
-## Next
-
 - Step 4-B 구현 계획 문서 작성 또는 갱신.
 - 계정 잠금 도메인 모델을 기존 인증 흐름과 어디서 연결할지 결정.
 - 잠금/해제/실패횟수 테스트 전략 정리.
@@ -47,3 +53,6 @@
   - `GlobalExceptionHandler` 인증 예외 세분화
   - JPA `RefreshToken` 엔티티/리포지토리 제거
   - 전체 테스트 통과 (`./gradlew test -x checkstyleMain -x checkstyleTest`)
+  - `User` 엔티티 builder 충돌 수정 (`builderClassName` 분리)
+  - Spring Security 기본 logout 비활성화로 `/logout` 경로 충돌 제거
+  - `frontend/` 인증 데모 콘솔 화면 추가

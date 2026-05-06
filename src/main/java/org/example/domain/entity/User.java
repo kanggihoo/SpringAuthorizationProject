@@ -98,7 +98,7 @@ public class User {
    * @param password BCrypt 암호화된 비밀번호
    * @param nickname 닉네임
    */
-  @Builder
+  @Builder(builderClassName = "LocalUserBuilder")
   public User(String username, String password, String nickname) {
     this.username = username;
     this.password = password;
@@ -117,7 +117,7 @@ public class User {
    * @param provider 인증 제공자 종류 (GOOGLE 등)
    * @param providerId 소셜 제공자의 고유 사용자 ID
    */
-  @Builder(builderMethodName = "oauthBuilder")
+  @Builder(builderMethodName = "oauthBuilder", builderClassName = "OAuth2UserBuilder")
   public User(String username, String nickname, String email,
       AuthProvider provider, String providerId) {
     this.username = username;
