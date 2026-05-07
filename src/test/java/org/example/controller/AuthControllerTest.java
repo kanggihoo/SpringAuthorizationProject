@@ -5,8 +5,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.util.Map;
 import org.example.domain.entity.User;
 import org.example.dto.request.LoginRequestDto;
 import org.example.dto.request.SignupRequest;
@@ -26,6 +29,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -106,6 +110,18 @@ class AuthControllerTest {
             assertThat(mvc.post().uri("/logout"))
                     .hasStatus(HttpStatus.FORBIDDEN);
         }
+
+        @Test
+        @DisplayName("인증된 사용자라도 Authorization 헤더가 없으면 400을 반환한다")
+        void returns400_whenAuthorizationHeaderMissing() {
+            assertThat(mvc.post().uri("/logout")
+                    .with(authenticatedUser("testuser")))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyText()
+                    .isEqualTo("Access Token이 존재하지 않습니다.");
+
+            verifyNoInteractions(authService);
+        }
     }
 
     // ======================== POST /login ========================
@@ -163,6 +179,26 @@ class AuthControllerTest {
                     .content(writeJson(loginRequest("", "password123"))))
                     .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT);
         }
+
+        @Test
+        @DisplayName("인증 정보가 틀리면 401을 반환한다")
+        @SuppressWarnings("unchecked")
+        void returns401_whenCredentialsAreInvalid() {
+            willThrow(new BadCredentialsException("bad credentials"))
+                    .given(authService)
+                    .login(any(LoginRequestDto.class));
+
+            assertThat(mvc.post().uri("/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(writeJson(loginRequest("testuser", "wrong-password"))))
+                    .hasStatus(HttpStatus.UNAUTHORIZED)
+                    .bodyJson()
+                    .convertTo(Map.class)
+                    .satisfies(body -> {
+                        assertThat(body).containsEntry("error", "Unauthorized");
+                        assertThat(body).containsEntry("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
+                    });
+        }
     }
 
     // ======================== POST /refresh ========================
@@ -215,6 +251,19 @@ class AuthControllerTest {
         void returns400_whenNoCookie() {
             assertThat(mvc.post().uri("/refresh"))
                     .hasStatus(HttpStatus.BAD_REQUEST);
+        }
+
+        @Test
+        @DisplayName("Refresh Token이 유효하지 않으면 400을 반환한다")
+        void returns400_whenRefreshTokenIsInvalid() {
+            given(authService.refresh("invalid-refresh-token"))
+                    .willThrow(new IllegalArgumentException("유효하지 않은 Refresh Token입니다."));
+
+            assertThat(mvc.post().uri("/refresh")
+                    .cookie(new Cookie("Refresh-Token", "invalid-refresh-token")))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyText()
+                    .isEqualTo("유효하지 않은 Refresh Token입니다.");
         }
     }
 

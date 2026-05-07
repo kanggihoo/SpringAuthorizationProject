@@ -2,11 +2,7 @@ package org.example.security.oauth2;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.domain.entity.AuthProvider;
-import org.example.domain.entity.Role;
 import org.example.domain.entity.User;
-import org.example.repository.RoleRepository;
-import org.example.repository.UserRepository;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -36,8 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-  private final UserRepository userRepository;
-  private final RoleRepository roleRepository;
+  private final OAuth2UserRegistrationService oAuth2UserRegistrationService;
 
   /**
    * OAuth2 인증 성공 후 사용자 정보를 로드하고 우리 서버의 User 엔티티와 연결한다.
@@ -56,62 +51,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     // 2. 제공자 ID 추출 (예: "google")
     String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
-    // 3. 팩토리를 통해 제공자에 맞는 파서로 사용자 정보 추출 (Google: sub, email, name)
-    //    새로운 제공자 추가 시 이 코드는 변경 불필요 (OCP 준수)
-    OAuth2UserInfo userInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(
-        registrationId, oauth2User.getAttributes());
-
-    String providerId = userInfo.getProviderId();
-    String email = userInfo.getEmail();
-
-    log.info("OAuth2 로그인 시도 - provider: {}, providerId: {}, email: {}",
-        registrationId, providerId, email);
-
-    // 4. registrationId를 기반으로 AuthProvider 결정 (구글, 카카오 등)
-    AuthProvider authProvider = AuthProvider.valueOf(registrationId.toUpperCase());
-
-    // 5. provider + providerId 기준으로 기존 가입 유저 조회
-    //    (이메일이 아닌 providerId로 조회하는 이유: 이메일은 변경될 수 있지만 sub는 불변)
-    User user = userRepository
-        .findByProviderAndProviderId(authProvider, providerId)
-        .orElseGet(() -> registerNewOAuth2User(authProvider, userInfo));
+    // 3. provider attributes를 애플리케이션 User 엔티티와 연결한다.
+    User user = oAuth2UserRegistrationService.findOrRegister(registrationId, oauth2User.getAttributes());
 
     log.info("OAuth2 사용자 처리 완료 - userId: {}, username: {}", user.getId(), user.getUsername());
 
-    // 6. 소셜 OAuth2User와 우리 서버 User를 함께 래핑하여 반환
+    // 4. 소셜 OAuth2User와 우리 서버 User를 함께 래핑하여 반환
     return new CustomOAuth2User(oauth2User, user);
-  }
-
-  /**
-   * 최초 OAuth2 로그인 시 우리 서버에 자동으로 회원가입을 처리한다.
-   *
-   * <p>username 규칙: "{PROVIDER}_{providerId}" — LOCAL 유저의 username과 충돌 방지.
-   * 비밀번호는 OAuth2 유저에게 불필요하므로 설정하지 않는다(null).
-   *
-   * @param provider 소셜 제공자 (Google, Kakao 등)
-   * @param userInfo 소셜 제공자로부터 파싱된 사용자 정보
-   * @return 저장된 새 User 엔티티
-   */
-  private User registerNewOAuth2User(AuthProvider provider, OAuth2UserInfo userInfo) {
-    log.info("신규 OAuth2 유저 자동 회원가입 - provider: {}, email: {}", provider, userInfo.getEmail());
-
-    // OAuth2 유저 전용 username: "{PROVIDER}_{providerId}" 형식으로 LOCAL 유저와 충돌 방지
-    String username = provider.name() + "_" + userInfo.getProviderId();
-
-    // 신규 OAuth2 유저 엔티티 생성 (password는 null — OAuth2 유저는 비밀번호 불필요)
-    User newUser = User.oauthBuilder()
-        .username(username)
-        .nickname(userInfo.getName())
-        .email(userInfo.getEmail())
-        .provider(provider)
-        .providerId(userInfo.getProviderId())
-        .build();
-
-    // 기본 권한 ROLE_USER 부여
-    Role userRole = roleRepository.findByName("ROLE_USER")
-        .orElseGet(() -> roleRepository.save(new Role("ROLE_USER")));
-    newUser.addRole(userRole);
-
-    return userRepository.save(newUser);
   }
 }

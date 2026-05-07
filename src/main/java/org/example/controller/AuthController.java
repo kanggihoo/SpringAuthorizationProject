@@ -66,6 +66,9 @@ public class AuthController implements AuthApi {
 
     if (userDetails != null) {
       String accessToken = resolveToken(request);
+      if (accessToken == null) {
+        throw new IllegalArgumentException("Access Token이 존재하지 않습니다.");
+      }
       authService.logout(userDetails.getUsername(), accessToken);
     }
 
