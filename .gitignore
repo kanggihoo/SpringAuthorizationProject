@@ -1,7 +1,13 @@
 HELP.md
-**/application-local.yml
+
 .agents/
 .claude/
+
+# Local environment variables
+.env
+.env.*
+!.env.example
+
 
 ### Eclipse ###
 .metadata
@@ -274,5 +280,6 @@ out/
 /docs/available_skills.md
 
 .worktrees/
+
 
 

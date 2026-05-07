@@ -39,6 +39,7 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             # 요청할 사용자 정보 범위: 기본 프로필(이름, 사진) + 이메일
             scope: profile, email
+            
 
 # 로깅 레벨 설정
 logging:
