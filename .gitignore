@@ -1,4 +1,7 @@
 HELP.md
+**/application-local.yml
+.agents/
+.claude/
 
 ### Eclipse ###
 .metadata
@@ -265,5 +268,11 @@ out/
 
 ### VS Code ###
 .vscode/
+
+/agent
+/docs/agent_skills_overview.md
+/docs/available_skills.md
+
+.worktrees/
 
 
