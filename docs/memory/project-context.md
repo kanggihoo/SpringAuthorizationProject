@@ -1,8 +1,3 @@
-# 프로젝트 컨텍스트 (Project Context)
-
-> 이 파일은 프로젝트의 고정된 기술 스펙과 설계 원칙을 담습니다.
-> 기술 스택이나 아키텍처 원칙이 변경될 때만 수정합니다.
-
 ## 프로젝트 개요
 
 Spring Boot 기반 인증/인가 학습 프로젝트.
@@ -46,14 +41,3 @@ src/main/java/org/example/
 - **Service 설계**: Interface 기반 설계, 트랜잭션 관리 책임
 - **Exception**: 커스텀 예외 정의, `GlobalExceptionHandler`에서 통합 처리
 - **Checkstyle**: Google Style 기준 적용 (`config/checkstyle/`)
-
-## 관련 문서 경로
-
-| 문서               | 경로                                                 |
-| ------------------ | ---------------------------------------------------- |
-| 1단계 설계안       | `docs/archive/completed-plans/step1.md`              |
-| 1단계 내부 흐름    | `docs/archive/internal-flows/step1-internal-flow.md` |
-| 2단계 설계안       | `docs/archive/completed-plans/step2.md`              |
-| 2단계 내부 흐름    | `docs/archive/internal-flows/step2-internal-flow.md` |
-| API 명세           | `docs/specs/api/`                                    |
-| 에이전트 스킬 목록 | `docs/available_skills.md`                           |

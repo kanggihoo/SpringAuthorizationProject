@@ -1,78 +1,122 @@
-## 1. 프로젝트 요구사항 및 아키텍처 구조
+# Spring Security Auth Security Lab
 
-### 인증 및 토큰 관리 (JWT & Redis)
+Spring Boot 4와 Spring Security 기반으로 JWT/OAuth2 인증 시스템을 구현하고,
+인증 보안 실패 시나리오를 테스트로 검증하는 프로젝트입니다.
 
-- 무상태(Stateless) 인증: 세션을 사용하지 않고 JWT를 사용하여 확장성 확보.
-- Dual Token 전략: Access Token(단기)과 Refresh Token(장기) 발급.
-- RTR (Refresh Token Rotation): Refresh Token 사용 시 새로운 Access/Refresh Token 세트를 재발급하여 탈취 위험 감소.
-- Redis 활용:
-    - Refresh Token 저장 (RTR 검증 및 중복 로그인 제어).
-    - Blacklist 저장 (로그아웃된 Access Token의 남은 유효 시간 동안 차단).
-- 엔드포인트 분리: 로그인(/login)과 토큰 갱신(/refresh) 경로를 명확히 구분.
+이 프로젝트의 목표는 "로그인 기능 구현"이 아니라 다음 질문에 답하는 것입니다.
 
-### 사용자 관리 및 보안 (PostgreSQL & JPA)
+- 로그아웃된 Access Token은 즉시 차단되는가?
+- Refresh Token이 탈취되어 재사용되면 탐지할 수 있는가?
+- 계정 잠금, 권한 검증, OAuth2 토큰 전달 방식은 안전하게 동작하는가?
+- Redis가 인증 상태 저장소가 되었을 때 장애 정책은 명확한가?
+- 핵심 인증/인가 로직을 테스트와 커버리지로 증명할 수 있는가?
 
-- DB 설계: PostgreSQL에 커스텀 User 테이블 구성.
-- 비밀번호 암호화: BCryptPasswordEncoder를 통한 해싱 및 솔팅 저장.
-- 데이터 접근: Spring Data JPA를 기본으로 하되, 복잡한 조회는 Querydsl로 타입 안정성 확보.
-- 계정 잠금 정책: 로그인 실패 횟수 초과 시 계정 잠금(enabled 또는 accountNonLocked 필드 활용) 및 관리자 해제 기능.
-- 정보 수정: 사용자가 자신의 정보를 확인하고 변경하면 즉시 DB와 SecurityContext에 반영.
+## Tech Stack
 
-### OAuth2 및 권한 제어
+| Area | Stack |
+| --- | --- |
+| Language | Java 21 |
+| Framework | Spring Boot 4, Spring MVC |
+| Security | Spring Security, OAuth2 Client, JWT |
+| Token Store | Redis |
+| Database | PostgreSQL, Spring Data JPA |
+| Test | JUnit, Spring Security Test, Testcontainers, AssertJ |
+| Quality | Checkstyle, JaCoCo |
 
-- 소셜 로그인: 구글, 깃허브, 카카오, 네이버 등 다중 프로바이더 지원.
-- 보안 강화: 초기 Code Grant 방식에서 PKCE(Proof Key for Code Exchange)를 적용하여 보안 강화.
-- RBAC (Role-Based Access Control):
-    - Filter 레벨: HttpSecurity 설정에서 URL 패턴별 권한 제한.
-    - Method 레벨: @PreAuthorize 등을 사용하여 서비스 레이어에서 세밀한 권한 검증.
+## Project Direction
 
----
+인증 프로젝트는 DB 성능 프로젝트처럼 p95 응답시간 개선을 핵심 증거로 삼기 어렵습니다.
+대신 이 프로젝트는 보안 불변식을 테스트로 검증합니다.
 
-## 2. 계정 잠금 및 알림 시스템 로직
+```text
+보안 실패 시나리오
+  -> 방어 정책
+  -> 자동화 테스트
+  -> 커버리지와 evidence 기록
+```
 
-### 계정 잠금 메커니즘
+커버리지는 Phase별 과거 코드 스냅샷으로 측정하지 않습니다.
+현재 코드베이스 전체를 기준으로 JaCoCo line coverage 80% 이상을 목표로 합니다.
 
-- DaoAuthenticationProvider가 로그인 시도 시 UserDetails의 isAccountNonLocked()를 체크.
-- 로그인 실패 시 커스텀 핸들러 또는 리스너에서 실패 횟수를 카운트.
-- 실패 횟수가 임계치(예: 5회)를 초과하면 DB의 is_locked 상태를 true로 변경.
+## Phase Roadmap
 
-### 알림 기능 (Notification)
+Phase는 포트폴리오와 evidence 문서에서 사용하는 분류입니다.
+기존 `docs/plans/step*.md` 문서는 구현 이력으로 유지합니다.
 
-- Spring의 ApplicationEventPublisher를 활용하여 비동기 이벤트 구조 설계.
-- 로그인 실패/계정 잠금 발생 시 이벤트를 발행.
-*EventListener가 이를 감지하여 사용자 이메일이나 SMS로 보안 경고 알림 발송 로직 트리거.
+### Core Roadmap
 
----
+| Phase | Name | Goal |
+| --- | --- | --- |
+| Phase 1 | JWT Dual Token 인증 기반 | Access Token과 Refresh Token을 분리하고 보호 API 접근을 검증한다. |
+| Phase 2 | Redis Token Store + Logout Blacklist | Refresh Token을 Redis에 저장하고 로그아웃된 Access Token을 차단한다. |
+| Phase 3 | Refresh Token Rotation & Reuse Detection | 이전 Refresh Token 재사용을 탈취 의심으로 탐지하고 차단한다. |
+| Phase 4 | Account Lock & Admin Recovery | 로그인 실패 누적으로 계정을 잠그고 관리자가 해제할 수 있게 한다. |
+| Phase 5 | Security Audit Event | 로그인 실패, 계정 잠금, 토큰 재사용 등 보안 이벤트를 추적한다. |
+| Phase 6 | OAuth2 자체 JWT 발급 | OAuth2 로그인 성공 후 서비스 자체 Access/Refresh Token을 발급한다. |
+| Phase 7 | OAuth2 One-time Code Exchange | OAuth2 성공 후 Access Token을 URL에 직접 노출하지 않고 code 교환 방식으로 처리한다. |
+| Phase 8 | RBAC & Method Security | URL 권한과 서비스 메서드 권한을 함께 검증한다. |
+| Phase 9 | Redis Failure Policy | Redis 장애 시 인증 기능별 fail-open/fail-closed 정책을 정한다. |
+| Phase 10 | Test Coverage 80% & Evidence | 현재 코드베이스 기준 JaCoCo 80%와 보안 시나리오 매트릭스를 관리한다. |
 
-## 3. OAuth2 기반 자체 JWT 발급 흐름
+### Extension Roadmap
 
-### 인증 프로세스 고도화
+Core Roadmap을 완료한 뒤 인증 플랫폼 확장 주제로 다룹니다.
 
-- Provider 정보 수집: OAuth2 제공자로부터 받은 유저 정보를 CustomOAuth2UserService에서 정제.
-- CustomSuccessHandler: OAuth2 인증 성공 직후 실행.
-    1. Provider에서 받은 고유 ID(sub)를 바탕으로 DB 유저 조회 또는 자동 회원가입.
-    2. 서버 전용 Access Token과 Refresh Token 생성.
-    3. 클라이언트에 토큰 응답 (RTR 적용을 위해 Refresh Token은 Redis에 저장).
-- 통합 인증 체계: 이후 클라이언트는 소셜 로그인 여부와 관계없이 서버가 발급한 자체 JWT로만 API 요청 수행.
+| Phase | Name | Goal |
+| --- | --- | --- |
+| Phase 11 | Redis 기반 Login Session Policy | HttpSession 없이 Redis session state와 `sid` claim으로 세션 폐기를 제어한다. |
+| Phase 12 | Multi Device Session Management | 기기별 Refresh Token Session을 관리하고 특정 기기/전체 로그아웃을 지원한다. |
+| Phase 13 | SSO / OIDC Authorization Server Exploration | 현재 OAuth2 Client 구조와 SSO/OIDC Authorization Server 구조의 차이를 검토한다. |
 
----
+## Security Scenarios
 
-## 4. Spring Security 필터 및 관리자(Manager) 매칭 구조
+핵심 증거는 "된다"는 설명이 아니라 재현 가능한 테스트입니다.
+각 시나리오는 테스트 클래스와 실행 결과로 추적합니다.
 
-여러 로그인 방식이 공존할 때, 각 단계별 컴포넌트의 역할과 서비스 간의 매칭 과정입니다.
+| Scenario | Expected |
+| --- | --- |
+| 로그인 성공 | Access Token 응답, Refresh Token 쿠키 발급 |
+| Access Token 없이 보호 API 접근 | 401 Unauthorized |
+| 변조된 Access Token 사용 | 401 Unauthorized |
+| 로그아웃 후 기존 Access Token 사용 | 401 Unauthorized |
+| 이전 Refresh Token 재사용 | 401 Unauthorized, 재사용 탐지 이벤트 |
+| 잘못된 비밀번호 5회 입력 | 계정 잠금, 423 Locked |
+| 잠긴 계정의 기존 Access Token 사용 | 401 Unauthorized |
+| USER가 ADMIN API 접근 | 403 Forbidden |
+| OAuth2 one-time code 재사용 | 400 또는 401 |
+| Redis 장애 중 refresh 요청 | 정책에 따른 차단 또는 장애 응답 |
 
-### 인증 필터 및 매니저 (Authentication)
+## Test And Evidence Policy
 
-- UsernamePasswordAuthenticationFilter: 일반 로그인(ID/PW) 요청을 가로채어 AuthenticationManager(ProviderManager)에게 전달.
-- OAuth2LoginAuthenticationFilter: OAuth2 인증 프로세스 처리 후 인증 객체 생성.
-- JwtAuthenticationFilter (Custom): 모든 보안 요청의 헤더에서 JWT를 추출하여 검증하고 SecurityContextHolder에 인증 정보를 저장.
-- AuthenticationManager: 등록된 여러 AuthenticationProvider(Dao, OAuth2 등) 중 적합한 것을 찾아 실제 인증 로직 수행.
+테스트와 evidence는 최소 문서 구조로 관리합니다.
 
-### 인가 관리자 및 서비스 매칭 (Authorization)
+```text
+README.md          # 프로젝트 방향과 Phase Roadmap
+docs/evidence.md   # 커버리지 목표, 테스트 실행 결과, 보안 시나리오 매트릭스
+docs/plans/        # 구현 계획과 작업 이력
+docs/archive/      # 완료된 과거 문서
+```
 
-- Filter 단 (Request Authorization):
-    - AuthorizationFilter가 모든 요청을 검사.
-    - AuthorizationManager가 현재 사용자의 GrantedAuthority와 설정된 requestMatchers를 대조하여 접근 허용 여부 결정.
-- Service 단 (Method Security):
-    - @PreAuthorize 등의 어노테이션이 붙은 메서드 호출 시 MethodSecurityAuthorizationManager가 작동.
-    - AOP를 통해 서비스 로직 실행 전 현재 사용자의 권한을 인터셉트하여 최종 검증.
+원칙:
+
+- Phase별 evidence 파일은 만들지 않습니다.
+- Phase별 과거 브랜치로 돌아가 커버리지를 측정하지 않습니다.
+- JaCoCo는 현재 코드베이스 전체 기준 80% 이상을 목표로 합니다.
+- Phase별 증거는 `docs/evidence.md`의 보안 시나리오 매트릭스에서 테스트와 상태로 관리합니다.
+
+## Current Focus
+
+현재 작업 흐름은 Phase 2에 해당하는 Redis Token Store와 Logout Blacklist 완성입니다.
+
+남은 주요 작업:
+
+- `JwtAuthenticationFilter`에서 blacklist Access Token 차단
+- OAuth2 성공 핸들러의 Refresh Token 저장소를 Redis로 전환
+- 기존 JPA `RefreshToken` 엔티티와 Repository 제거
+- 관련 테스트 보강 및 JaCoCo 커버리지 기준 정리
+
+## Documents
+
+- 구현 로드맵: `docs/plans/step4-7-roadmap.md`
+- Step 4-A 인수인계: `docs/plans/step4-A-handover.md`
+- 프로젝트 컨텍스트: `docs/memory/project-context.md`
