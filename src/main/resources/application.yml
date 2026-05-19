@@ -1,16 +1,18 @@
 spring:
-  # 데이터베이스 연결 설정
+  profiles:
+    active: local
+  # 데이터베이스 연결 설정 (Docker Compose로 실행되는 로컬 PostgreSQL)
   datasource:
-    url: jdbc:postgresql://localhost:5432/java_test # 데이터베이스 URL (임의의 값)
-    username: kkh # 데이터베이스 사용자명 (임의의 값)
-#    password: YOUR_PASSWORD # 데이터베이스 비밀번호 (임의의 값)
+    url: jdbc:postgresql://localhost:5432/java_test
+    username: kkh
+    password: password
     driver-class-name: org.postgresql.Driver
 
   # JPA 및 Hibernate 설정
   jpa:
     hibernate:
       # 개발 단계에서 스키마 자동 업데이트 (생성/기존 유지/변경사항 반영)
-      ddl-auto: update 
+      ddl-auto: update
     show-sql: true # 실행되는 SQL을 콘솔에 출력
     properties:
       hibernate:
@@ -19,19 +21,44 @@ spring:
         use_sql_comments: true # SQL 내부에 힌트/주석 포함
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  # # Redis 설정 (세션 관리용)
-  # data:
-  #   redis:
-  #     host: localhost
-  #     port: 6379
+  # Redis 설정 (향후 세션/토큰 관리에 활용)
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
-  # # 세션 저장소로 Redis 사용 설정
-  # session:
-  #   store-type: redis
+  # OAuth2 소셜 로그인 클라이언트 설정
+  security:
+    oauth2:
+      client:
+        registration:
+          # Google OAuth2 클라이언트 등록
+          # Google Cloud Console에서 발급받은 Client ID/Secret을 환경변수로 주입
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            # 요청할 사용자 정보 범위: 기본 프로필(이름, 사진) + 이메일
+            scope: profile, email
 
 # 로깅 레벨 설정
 logging:
   level:
-    org.hibernate.SQL: debug # Hibernate 실행 쿼리 로깅
+    org.hibernate.SQL: info # Hibernate 실행 쿼리 로깅
     org.hibernate.orm.jdbc.bind: trace # SQL 파라미터 바인딩 값 출력 (Spring Boot 3.x+)
-    org.springframework.security: debug # 스프링 시큐리티 상세 로그
+    org.springframework.security: info # 스프링 시큐리티 상세 로그
+
+# JWT 설정
+jwt:
+  # HS256 알고리즘을 위한 32바이트 이상의 임의의 비밀키
+  secret: c2VjcmV0LWtleS1mb3Itc3ByaW5nLWF1dGhvcml6YXRpb24tcHJvamVjdC1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzCg==
+  # Access Token 만료 시간 (1시간 = 3600000ms)
+  access-token-expiration: 3600000
+  # Refresh Token 만료 시간 (7일 = 604800000ms)
+  refresh-token-expiration: 604800000
+
+# 애플리케이션 공통 설정
+app:
+  oauth2:
+    # OAuth2 로그인 성공/실패 후 프론트엔드로 리다이렉트할 기본 URI
+    # 운영 환경에서는 실제 프론트엔드 도메인으로 변경 필요
+    redirect-uri: http://localhost:3000/oauth2/callback
