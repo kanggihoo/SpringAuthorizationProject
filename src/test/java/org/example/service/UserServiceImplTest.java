@@ -1,5 +1,6 @@
 package org.example.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,6 +14,8 @@ import org.example.domain.entity.User;
 import org.example.dto.request.SignupRequest;
 import org.example.repository.RoleRepository;
 import org.example.repository.UserRepository;
+import org.example.security.failure.AuthFailureCode;
+import org.example.security.failure.AuthFailureException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -89,7 +92,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("이미 존재하는 username으로 회원가입 시 RuntimeException이 발생한다")
+    @DisplayName("이미 존재하는 username으로 회원가입 시 AuthFailureException이 발생한다")
     void signup_throwsException_whenUsernameAlreadyExists() {
         // given
         SignupRequest request = new SignupRequest();
@@ -107,7 +110,7 @@ class UserServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> userServiceImpl.signup(request))
-            .isInstanceOf(RuntimeException.class)
-            .hasMessageContaining("이미 존재하는 아이디");
+            .isInstanceOfSatisfying(AuthFailureException.class, failure ->
+                assertThat(failure.getCode()).isEqualTo(AuthFailureCode.USER_ALREADY_EXISTS));
     }
 }

@@ -10,7 +10,7 @@ import jakarta.validation.Valid;
 import org.example.dto.request.LoginRequestDto;
 import org.example.dto.request.SignupRequest;
 import org.example.dto.response.TokenResponseDto;
-import org.example.security.CustomUserDetails;
+import org.example.security.authenticated.AuthenticatedUser;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -56,7 +56,7 @@ public interface AuthApi {
         @SecurityRequirement(name = "bearerAuth")
         @SecurityRequirement(name = "cookieAuth")
         ResponseEntity<String> logout(
-                        @AuthenticationPrincipal @Parameter(hidden = true) CustomUserDetails userDetails,
+                        @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedUser userDetails,
                         HttpServletRequest request,
                         HttpServletResponse response);
 

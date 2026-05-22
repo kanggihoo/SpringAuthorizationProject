@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import org.example.domain.entity.User;
@@ -13,7 +14,12 @@ import org.example.dto.request.SignupRequest;
 import org.example.dto.response.TokenResponseDto;
 import org.example.security.CustomUserDetails;
 import org.example.security.CustomUserDetailsService;
+import org.example.security.authenticated.AuthenticatedUserService;
+import org.example.security.failure.AuthFailureCode;
+import org.example.security.failure.AuthFailureException;
 import org.example.security.jwt.JwtTokenProvider;
+import org.example.security.token.TokenLifecycleService;
+import org.example.security.token.delivery.TokenDeliveryServiceImpl;
 import org.example.service.AuthService;
 import org.example.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +31,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -44,7 +53,7 @@ import tools.jackson.databind.json.JsonMapper;
  * JWT 커스텀 필터 검증은 별도 테스트에서 수행한다.
  */
 @WebMvcTest(AuthController.class)
-@Import(TestSecurityConfig.class)
+@Import({TestSecurityConfig.class, TokenDeliveryServiceImpl.class})
 class AuthControllerTest {
 
     @Autowired
@@ -64,6 +73,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
+
+    @MockitoBean
+    private AuthenticatedUserService authenticatedUserService;
+
+    @MockitoBean
+    private TokenLifecycleService tokenLifecycleService;
 
     // ======================== POST /logout ========================
 
@@ -97,6 +112,27 @@ class AuthControllerTest {
         }
 
         @Test
+        @DisplayName("Token Store 폐기가 실패해도 Refresh-Token 쿠키를 만료하고 503을 반환한다")
+        void expiresCookieAndReturns503_whenTokenStoreUnavailable() {
+            doThrow(new AuthFailureException(
+                    AuthFailureCode.TOKEN_STORE_UNAVAILABLE,
+                    "Token Store를 사용할 수 없습니다."))
+                    .when(authService)
+                    .logout("testuser", "test-access-token");
+
+            assertThat(mvc.post().uri("/logout")
+                    .with(authenticatedUser("testuser"))
+                    .header("Authorization", "Bearer test-access-token"))
+                    .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .cookies()
+                    .extractingByKey("Refresh-Token")
+                    .satisfies(cookie -> {
+                        assertThat(cookie).isNotNull();
+                        assertThat(cookie.getMaxAge()).isZero();
+                    });
+        }
+
+        @Test
         @DisplayName("미인증 상태면 403을 반환한다")
         void returnsForbidden_whenAnonymous() {
             assertThat(mvc.post().uri("/logout"))
@@ -118,7 +154,6 @@ class AuthControllerTest {
                     .tokenType("Bearer")
                     .build();
             given(authService.login(any())).willReturn(tokenResponse);
-            given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
         }
 
         @Test
@@ -159,6 +194,51 @@ class AuthControllerTest {
                     .content(writeJson(loginRequest("", "password123"))))
                     .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT);
         }
+
+        @Test
+        @DisplayName("비밀번호가 틀리면 BAD_CREDENTIALS 코드와 401을 반환한다")
+        void returns401WithBadCredentialsCode_whenPasswordIsWrong() {
+            given(authService.login(any()))
+                    .willThrow(new BadCredentialsException("Bad credentials"));
+
+            assertThat(mvc.post().uri("/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(writeJson(loginRequest("testuser", "wrong-password"))))
+                    .hasStatus(HttpStatus.UNAUTHORIZED)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("BAD_CREDENTIALS");
+        }
+
+        @Test
+        @DisplayName("잠긴 User는 ACCOUNT_LOCKED 코드와 423을 반환한다")
+        void returns423WithAccountLockedCode_whenUserIsLocked() {
+            given(authService.login(any()))
+                    .willThrow(new LockedException("User account is locked"));
+
+            assertThat(mvc.post().uri("/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(writeJson(loginRequest("testuser", "password123"))))
+                    .hasStatus(HttpStatus.LOCKED)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("ACCOUNT_LOCKED");
+        }
+
+        @Test
+        @DisplayName("비활성 User는 USER_DISABLED 코드와 403을 반환한다")
+        void returns403WithUserDisabledCode_whenUserIsDisabled() {
+            given(authService.login(any()))
+                    .willThrow(new DisabledException("User is disabled"));
+
+            assertThat(mvc.post().uri("/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(writeJson(loginRequest("testuser", "password123"))))
+                    .hasStatus(HttpStatus.FORBIDDEN)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("USER_DISABLED");
+        }
     }
 
     // ======================== POST /refresh ========================
@@ -175,7 +255,6 @@ class AuthControllerTest {
                     .tokenType("Bearer")
                     .build();
             given(authService.refresh(anyString())).willReturn(tokenResponse);
-            given(jwtTokenProvider.getRefreshTokenExpiration()).willReturn(604_800_000L);
         }
 
         @Test
@@ -210,7 +289,10 @@ class AuthControllerTest {
         @DisplayName("Refresh-Token 쿠키가 없으면 400을 반환한다")
         void returns400_whenNoCookie() {
             assertThat(mvc.post().uri("/refresh"))
-                    .hasStatus(HttpStatus.BAD_REQUEST);
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("REFRESH_TOKEN_MISSING");
         }
     }
 

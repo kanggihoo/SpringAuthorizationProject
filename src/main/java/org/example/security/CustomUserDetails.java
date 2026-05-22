@@ -1,18 +1,18 @@
 package org.example.security;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
 import org.example.domain.entity.User;
+import org.example.security.authenticated.AuthenticatedUser;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.Collection;
-import java.util.stream.Collectors;
 
 /**
  * Spring Security의 UserDetails 구현체
  * 보안 컨텍스트에서 유저 정보를 유지하기 위해 사용됨
  */
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails implements UserDetails, AuthenticatedUser {
 
   private final Long id;
   private final String username;
@@ -36,8 +36,14 @@ public class CustomUserDetails implements UserDetails {
   }
 
   /** 사용자 고유 ID 반환 (JWT 토큰 처리 등에 활용) */
+  @Override
   public Long getId() {
     return id;
+  }
+
+  @Override
+  public String getJwtSubject() {
+    return username;
   }
 
   /** 닉네임 반환 */

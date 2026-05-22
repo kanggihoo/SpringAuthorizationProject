@@ -6,6 +6,8 @@ import org.example.domain.entity.User;
 import org.example.dto.request.SignupRequest;
 import org.example.repository.RoleRepository;
 import org.example.repository.UserRepository;
+import org.example.security.failure.AuthFailureCode;
+import org.example.security.failure.AuthFailureException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +28,9 @@ public class UserServiceImpl implements UserService {
   public void signup(SignupRequest signupRequest) {
     // 이미 존재하는 유저인지 확인
     if (userRepository.findByUsername(signupRequest.getUsername()).isPresent()) {
-      throw new RuntimeException("이미 존재하는 아이디입니다.");
+      throw new AuthFailureException(
+          AuthFailureCode.USER_ALREADY_EXISTS,
+          "이미 존재하는 아이디입니다.");
     }
 
     // 비밀번호 암호화

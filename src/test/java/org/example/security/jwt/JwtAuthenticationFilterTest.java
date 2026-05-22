@@ -7,12 +7,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import java.util.List;
 import org.example.domain.entity.Role;
 import org.example.domain.entity.User;
 import org.example.security.CustomUserDetails;
-import org.example.security.CustomUserDetailsService;
+import org.example.security.authenticated.AuthenticatedUserService;
+import org.example.security.token.TokenLifecycleService;
+import org.example.security.token.delivery.TokenDeliveryServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,8 +27,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import io.jsonwebtoken.JwtException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
@@ -36,7 +38,10 @@ class JwtAuthenticationFilterTest {
     private static final String SECRET = "dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW11c3QtYmUtYXQtbGVhc3QtMzItYnl0ZXMtbG9uZw==";
 
     @Mock
-    private CustomUserDetailsService customUserDetailsService;
+    private AuthenticatedUserService authenticatedUserService;
+
+    @Mock
+    private TokenLifecycleService tokenLifecycleService;
 
     @Mock
     private FilterChain filterChain;
@@ -50,7 +55,11 @@ class JwtAuthenticationFilterTest {
         // SecurityContextHolder에 남아 있을 수 있는 이전 인증 정보를 비운다.
         // 이렇게 해야 한 테스트의 인증 결과가 다음 테스트로 새지 않는다.
         jwtTokenProvider = new JwtTokenProvider(SECRET, 3_600_000L, 604_800_000L);
-        jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
+        jwtAuthenticationFilter = new JwtAuthenticationFilter(
+                jwtTokenProvider,
+                authenticatedUserService,
+                tokenLifecycleService,
+                new TokenDeliveryServiceImpl(604_800_000L, true, "Lax"));
         SecurityContextHolder.clearContext();
     }
 
@@ -72,7 +81,9 @@ class JwtAuthenticationFilterTest {
         CustomUserDetails userDetails = createUserDetails("testuser", "tester", "ROLE_USER");
         MockHttpServletRequest request = requestWithBearerToken("/user/profile", token);
         MockHttpServletResponse response = new MockHttpServletResponse();
-        when(customUserDetailsService.loadUserByUsername("testuser")).thenReturn(userDetails);
+        when(authenticatedUserService.findActiveUserByJwtSubject("testuser"))
+                .thenReturn(java.util.Optional.of(userDetails));
+        when(tokenLifecycleService.isAccessTokenAllowed(token)).thenReturn(true);
 
         jwtAuthenticationFilter.doFilter(request, response, filterChain);
 
@@ -87,8 +98,61 @@ class JwtAuthenticationFilterTest {
                 .extracting(grantedAuthority -> grantedAuthority.getAuthority())
                 .containsExactly("ROLE_USER");
         // 유효한 토큰이므로 userDetailsService를 정확히 한 번 호출해야 한다.
-        verify(customUserDetailsService).loadUserByUsername("testuser");
+        verify(authenticatedUserService).findActiveUserByJwtSubject("testuser");
         // 인증 처리가 끝나면 필터 체인이 계속 진행되어야 한다.
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Does not authenticate a Blacklisted Access Token")
+    void doFilter_doesNotAuthenticate_whenAccessTokenIsBlacklisted() throws Exception {
+        String token = accessToken("testuser", "ROLE_USER");
+        MockHttpServletRequest request = requestWithBearerToken("/user/profile", token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(tokenLifecycleService.isAccessTokenAllowed(token)).thenReturn(false);
+
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verifyNoInteractions(authenticatedUserService);
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Does not authenticate a locked user even with a valid Access Token")
+    void doFilter_doesNotAuthenticate_whenUserIsLocked() throws Exception {
+        String token = accessToken("testuser", "ROLE_USER");
+        CustomUserDetails userDetails = createUserDetails(
+                "testuser", "tester", true, false, "ROLE_USER");
+        MockHttpServletRequest request = requestWithBearerToken("/user/profile", token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(tokenLifecycleService.isAccessTokenAllowed(token)).thenReturn(true);
+        when(authenticatedUserService.findActiveUserByJwtSubject("testuser"))
+                .thenReturn(java.util.Optional.empty());
+
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(authenticatedUserService).findActiveUserByJwtSubject("testuser");
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Does not authenticate a disabled user even with a valid Access Token")
+    void doFilter_doesNotAuthenticate_whenUserIsDisabled() throws Exception {
+        String token = accessToken("testuser", "ROLE_USER");
+        CustomUserDetails userDetails = createUserDetails(
+                "testuser", "tester", false, true, "ROLE_USER");
+        MockHttpServletRequest request = requestWithBearerToken("/user/profile", token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(tokenLifecycleService.isAccessTokenAllowed(token)).thenReturn(true);
+        when(authenticatedUserService.findActiveUserByJwtSubject("testuser"))
+                .thenReturn(java.util.Optional.empty());
+
+        jwtAuthenticationFilter.doFilter(request, response, filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(authenticatedUserService).findActiveUserByJwtSubject("testuser");
         verify(filterChain).doFilter(request, response);
     }
 
@@ -105,7 +169,7 @@ class JwtAuthenticationFilterTest {
         // 인증 정보가 없으므로 SecurityContext는 비어 있어야 한다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         // 헤더가 없으니 사용자 조회도 발생하면 안 된다.
-        verifyNoInteractions(customUserDetailsService);
+        verifyNoInteractions(authenticatedUserService);
         // 요청은 계속 진행되어야 하므로 필터 체인을 호출해야 한다.
         verify(filterChain).doFilter(request, response);
     }
@@ -124,7 +188,7 @@ class JwtAuthenticationFilterTest {
         // JWT 필터가 아닌 다른 인증 방식이 들어온 것이므로 여기서는 인증을 세팅하지 않는다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         // JWT 사용자 조회가 발생하지 않아야 한다.
-        verifyNoInteractions(customUserDetailsService);
+        verifyNoInteractions(authenticatedUserService);
         // 인증을 건너뛰되 요청은 정상적으로 이어져야 한다.
         verify(filterChain).doFilter(request, response);
     }
@@ -142,7 +206,7 @@ class JwtAuthenticationFilterTest {
         // shouldNotFilter로 제외된 경로이므로 SecurityContext에는 아무 인증도 남지 않아야 한다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         // 제외 경로에서는 사용자 조회 자체가 일어나면 안 된다.
-        verifyNoInteractions(customUserDetailsService);
+        verifyNoInteractions(authenticatedUserService);
         // 필터는 요청을 막지 않고 다음 단계로 넘긴다.
         verify(filterChain).doFilter(request, response);
     }
@@ -163,12 +227,17 @@ class JwtAuthenticationFilterTest {
         // 검증에 실패했으므로 인증 정보는 절대 세팅되면 안 된다.
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         // 토큰 검증이 실패했으니 사용자 조회도 발생하면 안 된다.
-        verifyNoInteractions(customUserDetailsService);
+        verifyNoInteractions(authenticatedUserService);
         // 예외가 발생한 경우 필터 체인은 진행되지 않아야 한다.
         verify(filterChain, never()).doFilter(request, response);
     }
 
     private CustomUserDetails createUserDetails(String username, String nickname, String... roles) {
+        return createUserDetails(username, nickname, true, true, roles);
+    }
+
+    private CustomUserDetails createUserDetails(
+            String username, String nickname, boolean enabled, boolean accountNonLocked, String... roles) {
         // 실제 서비스가 반환하는 형태를 최대한 비슷하게 만들기 위해
         // 도메인 User를 생성한 뒤 Spring Security가 사용하는 CustomUserDetails로 감싼다.
         // 이렇게 하면 필터가 principal을 세팅할 때의 동작을 더 현실적으로 검증할 수 있다.
@@ -177,6 +246,8 @@ class JwtAuthenticationFilterTest {
                 .password("encoded-password")
                 .nickname(nickname)
                 .build();
+        ReflectionTestUtils.setField(user, "enabled", enabled);
+        ReflectionTestUtils.setField(user, "accountNonLocked", accountNonLocked);
         for (String roleName : roles) {
             user.addRole(new Role(roleName));
         }
