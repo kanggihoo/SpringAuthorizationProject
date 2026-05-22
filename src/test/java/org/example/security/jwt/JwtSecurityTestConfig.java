@@ -1,8 +1,14 @@
 package org.example.security.jwt;
 
 import org.example.security.CustomUserDetailsService;
+import org.example.dto.response.TokenResponseDto;
+import org.example.security.authenticated.AuthenticatedUserService;
+import org.example.security.authenticated.AuthenticatedUserServiceImpl;
 import org.example.security.exception.CustomAccessDeniedHandler;
 import org.example.security.exception.CustomAuthenticationEntryPoint;
+import org.example.security.token.TokenLifecycleService;
+import org.example.security.token.delivery.TokenDeliveryService;
+import org.example.security.token.delivery.TokenDeliveryServiceImpl;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -28,9 +34,55 @@ class JwtSecurityTestConfig {
     @Bean
     JwtAuthenticationFilter jwtAuthenticationFilter(
         JwtTokenProvider jwtTokenProvider,
-        CustomUserDetailsService customUserDetailsService
+        AuthenticatedUserService authenticatedUserService,
+        TokenLifecycleService tokenLifecycleService,
+        TokenDeliveryService tokenDeliveryService
     ) {
-        return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
+        return new JwtAuthenticationFilter(
+            jwtTokenProvider,
+            authenticatedUserService,
+            tokenLifecycleService,
+            tokenDeliveryService);
+    }
+
+    @Bean
+    AuthenticatedUserService authenticatedUserService(CustomUserDetailsService customUserDetailsService) {
+        return new AuthenticatedUserServiceImpl(customUserDetailsService);
+    }
+
+    @Bean
+    TokenDeliveryService tokenDeliveryService() {
+        return new TokenDeliveryServiceImpl(604_800_000L, true, "Lax");
+    }
+
+    @Bean
+    TokenLifecycleService tokenLifecycleService() {
+        return new TokenLifecycleService() {
+            @Override
+            public TokenResponseDto issue(String jwtSubject, java.util.List<String> roles) {
+                throw new UnsupportedOperationException("Not used in JWT security slice tests");
+            }
+
+            @Override
+            public TokenResponseDto rotate(String refreshToken) {
+                throw new UnsupportedOperationException("Not used in JWT security slice tests");
+            }
+
+            @Override
+            public void logout(String jwtSubject, String accessToken) {
+                throw new UnsupportedOperationException("Not used in JWT security slice tests");
+            }
+
+            @Override
+            public boolean isAccessTokenAllowed(String accessToken) {
+                return true;
+            }
+
+            @Override
+            public long getRefreshTokenTtlSeconds() {
+                return 604_800L;
+            }
+        };
     }
 
     @Bean

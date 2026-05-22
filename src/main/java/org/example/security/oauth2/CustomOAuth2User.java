@@ -3,6 +3,7 @@ package org.example.security.oauth2;
 import java.util.Collection;
 import java.util.Map;
 import org.example.domain.entity.User;
+import org.example.security.authenticated.AuthenticatedUser;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
@@ -15,7 +16,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
  *
  * <p>권한(Authorities)은 우리 DB에 저장된 User의 Role 기반으로 제공된다.
  */
-public class CustomOAuth2User implements OAuth2User {
+public class CustomOAuth2User implements OAuth2User, AuthenticatedUser {
 
   /** Google OAuth2로부터 받은 원본 사용자 정보 */
   private final OAuth2User oauth2User;
@@ -46,6 +47,31 @@ public class CustomOAuth2User implements OAuth2User {
     return user.getRoles().stream()
         .map(role -> (GrantedAuthority) role::getName)
         .toList();
+  }
+
+  @Override
+  public Long getId() {
+    return user.getId();
+  }
+
+  @Override
+  public String getJwtSubject() {
+    return user.getUsername();
+  }
+
+  @Override
+  public String getNickname() {
+    return user.getNickname();
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return user.isEnabled();
+  }
+
+  @Override
+  public boolean isAccountNonLocked() {
+    return user.isAccountNonLocked();
   }
 
   /**

@@ -1,14 +1,18 @@
 package org.example.controller;
 
-import java.util.Arrays;
-import java.util.Optional;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.controller.docs.AuthApi;
 import org.example.dto.request.LoginRequestDto;
 import org.example.dto.request.SignupRequest;
 import org.example.dto.response.TokenResponseDto;
-import org.example.security.CustomUserDetails;
-import org.example.security.jwt.JwtTokenProvider;
+import org.example.security.authenticated.AuthenticatedUser;
+import org.example.security.failure.AuthFailureCode;
+import org.example.security.failure.AuthFailureException;
+import org.example.security.token.delivery.TokenDeliveryService;
 import org.example.service.AuthService;
 import org.example.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -17,27 +21,20 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
+/**
+ * Authentication HTTP adapter.
+ */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class AuthController implements AuthApi {
 
   private final AuthService authService;
-  private final JwtTokenProvider jwtTokenProvider;
-
   private final UserService userService;
+  private final TokenDeliveryService tokenDeliveryService;
 
   /**
-   * 회원가입 API
-   * 
-   * @param signupRequest 회원가입 요청 DTO (JSON 반입)
+   * Creates a Local User.
    */
   @PostMapping("/signup")
   public ResponseEntity<String> signup(@Valid @RequestBody SignupRequest signupRequest) {
@@ -45,83 +42,55 @@ public class AuthController implements AuthApi {
     return ResponseEntity.ok("회원가입이 완료되었습니다.");
   }
 
+  /**
+   * Authenticates a Local User and delivers the issued tokens.
+   */
   @PostMapping("/login")
   public ResponseEntity<TokenResponseDto> login(
       @Valid @RequestBody LoginRequestDto requestDto,
-      HttpServletResponse response) {
-
+      HttpServletResponse response
+  ) {
     TokenResponseDto tokenResponse = authService.login(requestDto);
-
-    // RT를 쿠키에 담음
-    setRefreshTokenCookie(response, tokenResponse.getRefreshToken());
-
+    tokenDeliveryService.addRefreshTokenCookie(response, tokenResponse.getRefreshToken());
     return ResponseEntity.ok(tokenResponse);
   }
 
+  /**
+   * Revokes current tokens and expires the Refresh Token cookie.
+   */
   @PostMapping("/logout")
   public ResponseEntity<String> logout(
-      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @AuthenticationPrincipal AuthenticatedUser userDetails,
       HttpServletRequest request,
-      HttpServletResponse response) {
+      HttpServletResponse response
+  ) {
+    try {
+      if (userDetails != null) {
+        String accessToken = tokenDeliveryService.resolveBearerAccessToken(request).orElse(null);
+        authService.logout(userDetails.getJwtSubject(), accessToken);
+      }
 
-    if (userDetails != null) {
-      String accessToken = resolveToken(request);
-      authService.logout(userDetails.getUsername(), accessToken);
+      return ResponseEntity.ok("로그아웃 되었습니다.");
+    } finally {
+      tokenDeliveryService.expireRefreshTokenCookie(response);
     }
-
-    // 기존 쿠키 삭제
-    Cookie cookie = new Cookie("Refresh-Token", null);
-    cookie.setMaxAge(0);
-    cookie.setPath("/");
-    response.addCookie(cookie);
-
-    return ResponseEntity.ok("로그아웃 되었습니다.");
   }
 
+  /**
+   * Rotates the Refresh Token and returns a new Access Token.
+   */
   @PostMapping("/refresh")
   public ResponseEntity<TokenResponseDto> refresh(
       HttpServletRequest request,
-      HttpServletResponse response) {
-
-    String refreshToken = getRefreshTokenFromCookie(request)
-        .orElseThrow(() -> new IllegalArgumentException("Refresh Token이 존재하지 않습니다."));
+      HttpServletResponse response
+  ) {
+    String refreshToken = tokenDeliveryService.readRefreshToken(request)
+        .orElseThrow(() -> new AuthFailureException(
+            AuthFailureCode.REFRESH_TOKEN_MISSING,
+            "Refresh Token이 존재하지 않습니다."));
 
     TokenResponseDto tokenResponse = authService.refresh(refreshToken);
-
-    // 재발급된 RT를 다시 쿠키에 담음 (RTR)
-    setRefreshTokenCookie(response, tokenResponse.getRefreshToken());
-
+    tokenDeliveryService.addRefreshTokenCookie(response, tokenResponse.getRefreshToken());
     return ResponseEntity.ok(tokenResponse);
-  }
-
-  // Authorization 헤더에서 Bearer 토큰 추출
-  private String resolveToken(HttpServletRequest request) {
-    String bearerToken = request.getHeader("Authorization");
-    if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-      return bearerToken.substring(7);
-    }
-    return null;
-  }
-
-  // Refresh Token 쿠키 설정 (HttpOnly, Secure)
-  private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
-    Cookie cookie = new Cookie("Refresh-Token", refreshToken);
-    cookie.setHttpOnly(true);
-    cookie.setSecure(true);
-    cookie.setPath("/");
-    cookie.setMaxAge((int) (jwtTokenProvider.getRefreshTokenExpiration() / 1000));
-    response.addCookie(cookie);
-  }
-
-  // 요청의 쿠키에서 Refresh Token 추출
-  private Optional<String> getRefreshTokenFromCookie(HttpServletRequest request) {
-    Cookie[] cookies = request.getCookies();
-    if (cookies != null) {
-      return Arrays.stream(cookies)
-          .filter(cookie -> "Refresh-Token".equals(cookie.getName()))
-          .map(Cookie::getValue)
-          .findFirst();
-    }
-    return Optional.empty();
   }
 }

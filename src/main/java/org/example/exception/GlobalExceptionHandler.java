@@ -9,12 +9,52 @@ import io.jsonwebtoken.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.example.security.failure.AuthFailureCode;
+import org.example.security.failure.AuthFailureException;
+import org.example.security.failure.AuthFailureResponse;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.AuthenticationException;
 
 /**
  * 전역 예외 처리기 => 이후에 동일한 형식으로 반환하면 좋을듯?
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  /**
+   * 인증 실패 예외 처리.
+   */
+  @ExceptionHandler(AuthFailureException.class)
+  public ResponseEntity<AuthFailureResponse> handleAuthFailure(AuthFailureException e) {
+    return ResponseEntity.status(e.getCode().getHttpStatus())
+        .body(AuthFailureResponse.from(e));
+  }
+
+  /**
+   * Spring Security 인증 실패 예외 처리.
+   */
+  @ExceptionHandler(AuthenticationException.class)
+  public ResponseEntity<AuthFailureResponse> handleAuthenticationException(
+      AuthenticationException e) {
+    AuthFailureCode code = resolveAuthenticationFailureCode(e);
+    return ResponseEntity.status(code.getHttpStatus())
+        .body(new AuthFailureResponse(code.name(), e.getMessage()));
+  }
+
+  private AuthFailureCode resolveAuthenticationFailureCode(AuthenticationException e) {
+    if (e instanceof LockedException) {
+      return AuthFailureCode.ACCOUNT_LOCKED;
+    }
+    if (e instanceof DisabledException) {
+      return AuthFailureCode.USER_DISABLED;
+    }
+    if (e instanceof BadCredentialsException) {
+      return AuthFailureCode.BAD_CREDENTIALS;
+    }
+    return AuthFailureCode.BAD_CREDENTIALS;
+  }
 
   /**
    * 비즈니스 로직 예외 처리(400에러)
