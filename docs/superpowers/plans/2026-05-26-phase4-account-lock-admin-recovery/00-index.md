@@ -47,6 +47,7 @@ Create:
 
 - `src/main/java/org/example/repository/LoginFailureRedisRepository.java`
 - `src/main/java/org/example/security/account/LoginFailureCounter.java`
+- `src/main/resources/redis/increment-login-failure.lua`
 - `src/main/java/org/example/service/AdminService.java`
 - `src/main/java/org/example/service/AdminServiceImpl.java`
 - `src/main/java/org/example/controller/AdminController.java`

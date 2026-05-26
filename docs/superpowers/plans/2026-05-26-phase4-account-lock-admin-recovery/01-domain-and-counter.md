@@ -43,6 +43,7 @@ git commit -m "feat: add user account lock methods"
 **Files:**
 
 - Create: `src/main/java/org/example/repository/LoginFailureRedisRepository.java`
+- Create: `src/main/resources/redis/increment-login-failure.lua`
 - Create: `src/test/java/org/example/repository/LoginFailureRedisRepositoryTest.java`
 
 - [ ] **Step 1: Write failing Redis repository test**
@@ -140,32 +141,53 @@ Expected: FAIL because `LoginFailureRedisRepository` does not exist.
 
 - [ ] **Step 3: Implement Redis repository**
 
+Create `src/main/resources/redis/increment-login-failure.lua` so increment and first TTL setup run atomically in Redis:
+
+```lua
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+```
+
 Create `src/main/java/org/example/repository/LoginFailureRedisRepository.java`:
 
 ```java
 package org.example.repository;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@RequiredArgsConstructor
 public class LoginFailureRedisRepository {
 
   private static final String ACCOUNT_FAILURE_PREFIX = "auth:login:fail:user:";
+  private static final RedisScript<Long> INCREMENT_FAILURE_SCRIPT =
+      createIncrementFailureScript();
 
   private final StringRedisTemplate redisTemplate;
 
+  public LoginFailureRedisRepository(StringRedisTemplate redisTemplate) {
+    this.redisTemplate = redisTemplate;
+  }
+
   public long incrementFailure(String username, Duration ttl) {
     String key = accountFailureKey(username);
-    Long count = redisTemplate.opsForValue().increment(key);
-    if (count != null && count == 1L) {
-      redisTemplate.expire(key, ttl.toSeconds(), TimeUnit.SECONDS);
+    Long count = redisTemplate.execute(
+        INCREMENT_FAILURE_SCRIPT,
+        List.of(key),
+        String.valueOf(ttl.toSeconds()));
+    if (count == null) {
+      throw new DataAccessResourceFailureException("Redis login failure counter returned null");
     }
-    return count == null ? 0L : count;
+    return count;
   }
 
   public void clearFailure(String username) {
@@ -174,6 +196,13 @@ public class LoginFailureRedisRepository {
 
   private String accountFailureKey(String username) {
     return ACCOUNT_FAILURE_PREFIX + username;
+  }
+
+  private static RedisScript<Long> createIncrementFailureScript() {
+    DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+    script.setLocation(new ClassPathResource("redis/increment-login-failure.lua"));
+    script.setResultType(Long.class);
+    return script;
   }
 }
 ```
@@ -191,7 +220,7 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/main/java/org/example/repository/LoginFailureRedisRepository.java src/test/java/org/example/repository/LoginFailureRedisRepositoryTest.java
+git add src/main/java/org/example/repository/LoginFailureRedisRepository.java src/main/resources/redis/increment-login-failure.lua src/test/java/org/example/repository/LoginFailureRedisRepositoryTest.java
 git commit -m "feat: add login failure redis repository"
 ```
 

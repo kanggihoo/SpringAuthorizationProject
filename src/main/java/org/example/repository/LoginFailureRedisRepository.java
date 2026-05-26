@@ -2,8 +2,10 @@ package org.example.repository;
 
 import java.time.Duration;
 import java.util.List;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
 
@@ -14,14 +16,8 @@ import org.springframework.stereotype.Repository;
 public class LoginFailureRedisRepository {
 
   private static final String ACCOUNT_FAILURE_PREFIX = "auth:login:fail:user:";
-  private static final RedisScript<Long> INCREMENT_FAILURE_SCRIPT = RedisScript.of(
-      String.join("\n",
-          "local count = redis.call('INCR', KEYS[1])",
-          "if count == 1 then",
-          "  redis.call('EXPIRE', KEYS[1], ARGV[1])",
-          "end",
-          "return count"),
-      Long.class);
+  private static final RedisScript<Long> INCREMENT_FAILURE_SCRIPT =
+      createIncrementFailureScript();
 
   private final StringRedisTemplate redisTemplate;
 
@@ -70,5 +66,17 @@ public class LoginFailureRedisRepository {
    */
   private String accountFailureKey(String username) {
     return ACCOUNT_FAILURE_PREFIX + username;
+  }
+
+  /**
+   * Loads the Redis script that atomically increments and starts the TTL.
+   *
+   * @return Redis script returning the updated count
+   */
+  private static RedisScript<Long> createIncrementFailureScript() {
+    DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+    script.setLocation(new ClassPathResource("redis/increment-login-failure.lua"));
+    script.setResultType(Long.class);
+    return script;
   }
 }

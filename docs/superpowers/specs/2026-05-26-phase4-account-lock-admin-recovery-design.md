@@ -31,6 +31,7 @@ Account Lock counter:
 - Threshold: 5 failed login attempts
 - Window: 30 minutes
 - TTL behavior: set TTL only when the counter is first created
+- Redis command behavior: increment and first TTL setup run atomically with Lua
 - Final lock state: `users.accountNonLocked=false` in DB
 
 Response policy:
@@ -66,7 +67,7 @@ Responsibilities:
 
 - Build the account failure key.
 - Increment a failure counter.
-- Set TTL on first failure.
+- Set TTL on first failure in the same Redis Lua script as the increment.
 - Delete the account failure counter.
 
 It owns Redis mechanics only. It should not decide whether a User should be locked.
