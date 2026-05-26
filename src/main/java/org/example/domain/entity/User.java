@@ -137,4 +137,18 @@ public class User {
   public void addRole(Role role) {
     this.roles.add(role);
   }
+
+  /**
+   * Locks this User for authentication.
+   */
+  public void lock() {
+    this.accountNonLocked = false;
+  }
+
+  /**
+   * Unlocks this User for authentication.
+   */
+  public void unlock() {
+    this.accountNonLocked = true;
+  }
 }
