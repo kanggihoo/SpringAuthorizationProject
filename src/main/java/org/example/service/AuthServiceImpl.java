@@ -9,7 +9,9 @@ import org.example.dto.request.LoginRequestDto;
 import org.example.dto.response.TokenResponseDto;
 import org.example.repository.UserRepository;
 import org.example.security.account.LoginFailureCounter;
+import org.example.security.account.AccountLockService;
 import org.example.security.authenticated.AuthenticatedUser;
+import org.example.security.audit.SecurityAuditService;
 import org.example.security.failure.AuthFailureCode;
 import org.example.security.failure.AuthFailureException;
 import org.example.security.token.TokenLifecycleService;
@@ -32,6 +34,8 @@ public class AuthServiceImpl implements AuthService {
   private final TokenLifecycleService tokenLifecycleService;
   private final UserRepository userRepository;
   private final LoginFailureCounter loginFailureCounter;
+  private final SecurityAuditService securityAuditService;
+  private final AccountLockService accountLockService;
 
   @Override
   public TokenResponseDto login(LoginRequestDto requestDto) {
@@ -54,9 +58,9 @@ public class AuthServiceImpl implements AuthService {
               username,
               requestDto.getPassword()));
     } catch (BadCredentialsException e) {
+      securityAuditService.recordLoginFailed(username);
       if (loginFailureCounter.recordFailure(username)) {
-        user.lock();
-        userRepository.save(user);
+        accountLockService.lockForLoginFailure(username);
         throw new AuthFailureException(
             AuthFailureCode.ACCOUNT_LOCKED,
             "User account is locked after too many login failures.",

@@ -74,13 +74,17 @@ Phase 4 implementation policy:
 
 ## Phase 5 - Security Audit Event
 
+발표 및 포트폴리오용 해설 문서: [Phase 5 - Security Audit Event](portfolio/phase5-security-audit-event.md)
+
 | 주장 | 시나리오 | 기대 결과 | 대상 테스트 | 상태 | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| 로그인 실패가 감사된다 | 잘못된 비밀번호로 로그인 | LoginFailed 이벤트 또는 감사 기록 | `SecurityAuditEventTest.loginFailure_isRecorded` | TODO | 이벤트 모델이 아직 구현되지 않음 |
-| 계정 잠금이 감사된다 | 실패 임계값 도달 | AccountLocked 이벤트 또는 감사 기록 | `SecurityAuditEventTest.accountLock_isRecorded` | TODO | Phase 4에 의존 |
-| Refresh Token 재사용이 감사된다 | 이전 Refresh Token 재사용 | TokenReuse 이벤트 또는 감사 기록 | `SecurityAuditEventTest.refreshReuse_isRecorded` | TODO | Phase 3 이벤트 결정에 의존 |
+| 로그인 실패가 감사된다 | 잘못된 비밀번호로 로그인 | `LOGIN_FAILED` Security Audit Event가 저장되고, 감사 저장 실패 시 `AUDIT_STORE_UNAVAILABLE` 503으로 fail-closed 된다 | `SecurityAuditServiceTest.recordLoginFailed_savesLoginFailedEvent`, `SecurityAuditServiceTest.recordLoginFailed_throwsAuditStoreUnavailable_whenRepositoryFails`, `AuthServiceImplTest.login_recordsLoginFailedAudit_beforeFailureCounter`, `AuthServiceImplTest.login_throwsAuditStoreUnavailable_whenLoginFailedAuditFails`, `AuthControllerTest.returns503WithAuditStoreUnavailableCode_whenAuditStoreUnavailableOnLogin` | PASS | 2026-06-10에 Phase 5 focused command run(`rtk gradlew test --rerun-tasks --tests org.example.security.audit.SecurityAuditServiceTest --tests org.example.repository.SecurityAuditEventRepositoryTest --tests org.example.service.AuthServiceImplTest --tests org.example.security.account.AccountLockServiceImplTest --tests org.example.security.account.AccountLockServiceIntegrationTest --tests org.example.security.account.AccountLockServiceRollbackIntegrationTest --tests org.example.security.token.TokenLifecycleServiceImplTest --tests org.example.controller.AuthControllerTest`)으로 검증 |
+| 계정 잠금이 감사된다 | 실패 임계값 도달 | User lock과 `ACCOUNT_LOCKED` Security Audit Event가 같은 트랜잭션으로 저장되고, 감사 저장 실패 시 User lock이 rollback된다 | `AccountLockServiceImplTest.lockForLoginFailure_locksUserAndRecordsAudit`, `AccountLockServiceIntegrationTest.lockForLoginFailure_commitsUserLockAndAuditTogether`, `AccountLockServiceRollbackIntegrationTest.lockForLoginFailure_rollsBackUserLock_whenAuditFails` | PASS | 2026-06-10에 Phase 5 focused command run(`rtk gradlew test --rerun-tasks --tests org.example.security.audit.SecurityAuditServiceTest --tests org.example.repository.SecurityAuditEventRepositoryTest --tests org.example.service.AuthServiceImplTest --tests org.example.security.account.AccountLockServiceImplTest --tests org.example.security.account.AccountLockServiceIntegrationTest --tests org.example.security.account.AccountLockServiceRollbackIntegrationTest --tests org.example.security.token.TokenLifecycleServiceImplTest --tests org.example.controller.AuthControllerTest`)으로 검증 |
+| Refresh Token 재사용이 감사된다 | 이전 Refresh Token 재사용 | `REFRESH_TOKEN_REUSED` Security Audit Event가 저장되고, 감사 저장 실패 시 `AUDIT_STORE_UNAVAILABLE` 503으로 fail-closed 된다 | `TokenLifecycleServiceImplTest.rotate_recordsAuditAndRejects_whenRefreshTokenIsReused`, `TokenLifecycleServiceImplTest.rotate_throwsAuditStoreUnavailable_whenRefreshReuseAuditFails`, `TokenLifecycleServiceImplTest.rotate_rejectsMissingRefreshToken`, `AuthControllerTest.returns503WithAuditStoreUnavailableCode_whenAuditStoreUnavailableOnRefresh` | PASS | 2026-06-10에 Phase 5 focused command run(`rtk gradlew test --rerun-tasks --tests org.example.security.audit.SecurityAuditServiceTest --tests org.example.repository.SecurityAuditEventRepositoryTest --tests org.example.service.AuthServiceImplTest --tests org.example.security.account.AccountLockServiceImplTest --tests org.example.security.account.AccountLockServiceIntegrationTest --tests org.example.security.account.AccountLockServiceRollbackIntegrationTest --tests org.example.security.token.TokenLifecycleServiceImplTest --tests org.example.controller.AuthControllerTest`)으로 검증 |
 
 ## Phase 6 - OAuth2 Service JWT Issuing
+
+발표 및 포트폴리오용 해설 문서: [Phase 6 - OAuth2 Service JWT Issuing](portfolio/phase6-oauth2-service-jwt-issuing.md)
 
 | 주장 | 시나리오 | 기대 결과 | 대상 테스트 | 상태 | 비고 |
 | --- | --- | --- | --- | --- | --- |
@@ -88,16 +92,16 @@ Phase 4 implementation policy:
 | OAuth2 로그인은 서비스 Refresh Token을 발급한다 | OAuth2 success handler가 실행된다 | Refresh Token cookie가 설정된다 | `OAuth2AuthenticationSuccessHandlerTest` | PASS | 2026-05-20에 `./gradlew.bat test`로 검증 |
 | OAuth2 로그인과 로컬 로그인은 Token Store 정책을 공유한다 | OAuth2 success handler가 실행된다 | 토큰 발급이 `TokenLifecycleService`를 거친다 | `OAuth2AuthenticationSuccessHandlerTest.onAuthenticationSuccess_issuesTokensThroughTokenLifecycleServiceAndRedirects` | PASS | 2026-05-20에 `./gradlew.bat test`로 검증 |
 
-## Phase 7 - OAuth2 One-time Code Exchange
+## Phase 7 - OAuth2 Refresh Bootstrap Delivery
 
 | 주장 | 시나리오 | 기대 결과 | 대상 테스트 | 상태 | 비고 |
 | --- | --- | --- | --- | --- | --- |
 | Refresh Token 전달 정책이 중앙화된다 | 로그인, refresh, logout, OAuth2 success가 Refresh Token을 전달한다 | Cookie 생성, 만료, 읽기가 `TokenDeliveryService`를 거친다 | `TokenDeliveryServiceImplTest` | PASS | 2026-05-20에 `./gradlew.bat test`로 검증 |
 | Bearer Access Token 추출이 중앙화된다 | Protected API 또는 logout이 Authorization header를 받는다 | Bearer token 추출이 `TokenDeliveryService`를 거친다 | `TokenDeliveryServiceImplTest.resolveBearerAccessToken_returnsBearerToken` | PASS | 2026-05-20에 `./gradlew.bat test`로 검증 |
-| Access Token은 redirect URL에 노출되지 않는다 | OAuth2 로그인이 성공한다 | Redirect에는 Access Token이 아니라 one-time code가 포함된다 | `OAuth2AuthenticationSuccessHandlerTest.redirectsWithOneTimeCode` | TODO | 현재 코드는 URL fragment를 사용함 |
-| One-time code는 한 번만 교환할 수 있다 | 첫 번째 교환 요청 | Access Token 응답과 Refresh Token cookie | `OAuth2TokenExchangeTest.exchangeCode_success` | TODO | Endpoint가 아직 구현되지 않음 |
-| One-time code는 재사용할 수 없다 | 두 번째 교환 요청 | 400 또는 401 | `OAuth2TokenExchangeTest.exchangeCode_reuseRejected` | TODO | Redis consume-and-delete 연산 필요 |
-| 만료된 code는 거부된다 | TTL 이후 교환 | 400 또는 401 | `OAuth2TokenExchangeTest.expiredCode_rejected` | TODO | Redis TTL 필요 |
+| Access Token은 redirect URL에 노출되지 않는다 | OAuth2 로그인이 성공한다 | Redirect URL에는 Access Token, Refresh Token, 임시 교환 코드가 포함되지 않고 프론트엔드 기본 `/`로 이동한다 | `OAuth2AuthenticationSuccessHandlerTest.redirectsToFrontendRootWithoutAccessToken` | TODO | 현재 코드는 URL fragment로 Access Token을 전달함 |
+| OAuth2 성공은 Refresh Token cookie만 부트스트랩한다 | OAuth2 success handler가 실행된다 | Refresh Token은 HttpOnly cookie로 설정되고 Access Token은 응답 URL에 실리지 않는다 | `OAuth2AuthenticationSuccessHandlerTest.setsRefreshTokenCookieAndRedirectsToFrontendRoot` | TODO | OAuth2 success 후 프론트엔드 앱 부팅이 `/refresh`를 호출하는 구조 |
+| 프론트엔드 앱 부팅은 Refresh Token으로 Access Token을 복구한다 | React 최상단 AuthProvider/AppBootstrap이 앱 로드 시 `POST /refresh`를 호출한다 | Refresh Token cookie 기반으로 새 Access Token을 응답 body로 받고 Refresh Token cookie가 rotation된다 | `AuthControllerTest.refresh_returnsAccessTokenAndRotatesRefreshCookie` | TODO | 기존 `/refresh` 엔드포인트를 OAuth2 bootstrap 복구 경로로 재사용 |
+| 만료된 Access Token은 refresh fallback으로 복구된다 | Protected API 호출이 Access Token 만료로 401을 반환한다 | 프론트엔드는 `POST /refresh` 후 원 요청을 새 Access Token으로 1회 재시도한다 | 프론트엔드 API client 테스트 또는 문서화된 통합 시나리오 | TODO | 프론트엔드 구현 범위에서 검증 필요 |
 
 ## Phase 8 - RBAC & Method Security
 

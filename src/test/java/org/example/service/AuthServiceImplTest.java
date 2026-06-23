@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -16,7 +18,9 @@ import org.example.dto.request.LoginRequestDto;
 import org.example.dto.response.TokenResponseDto;
 import org.example.repository.UserRepository;
 import org.example.security.CustomUserDetails;
+import org.example.security.account.AccountLockService;
 import org.example.security.account.LoginFailureCounter;
+import org.example.security.audit.SecurityAuditService;
 import org.example.security.failure.AuthFailureCode;
 import org.example.security.failure.AuthFailureException;
 import org.example.security.token.TokenLifecycleService;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -45,6 +50,12 @@ class AuthServiceImplTest {
 
   @Mock
   private LoginFailureCounter loginFailureCounter;
+
+  @Mock
+  private SecurityAuditService securityAuditService;
+
+  @Mock
+  private AccountLockService accountLockService;
 
   @InjectMocks
   private AuthServiceImpl authServiceImpl;
@@ -83,8 +94,10 @@ class AuthServiceImplTest {
           assertThat(failure.getCause()).isSameAs(badCredentials);
         });
 
-    assertThat(user.isAccountNonLocked()).isFalse();
-    verify(userRepository).save(user);
+    assertThat(user.isAccountNonLocked()).isTrue();
+    verify(securityAuditService).recordLoginFailed("testuser");
+    verify(accountLockService).lockForLoginFailure("testuser");
+    verify(userRepository, never()).save(any());
     verify(tokenLifecycleService, never()).issue(any(), any());
   }
 
@@ -105,6 +118,50 @@ class AuthServiceImplTest {
         });
 
     assertThat(user.isAccountNonLocked()).isTrue();
+    verify(securityAuditService).recordLoginFailed("testuser");
+    verify(userRepository, never()).save(any());
+    verify(tokenLifecycleService, never()).issue(any(), any());
+  }
+
+  @Test
+  @DisplayName("login records LOGIN_FAILED audit before increasing failure counter")
+  void login_recordsLoginFailedAudit_beforeFailureCounter() {
+    User user = user("testuser", true);
+    BadCredentialsException badCredentials = new BadCredentialsException("Bad credentials");
+    given(userRepository.findByUsername("testuser")).willReturn(Optional.of(user));
+    given(authenticationManager.authenticate(any())).willThrow(badCredentials);
+    given(loginFailureCounter.recordFailure("testuser")).willReturn(false);
+
+    assertThatThrownBy(() ->
+        authServiceImpl.login(createLoginRequest("testuser", "wrong-password")))
+        .isInstanceOfSatisfying(AuthFailureException.class, failure ->
+            assertThat(failure.getCode()).isEqualTo(AuthFailureCode.BAD_CREDENTIALS));
+
+    InOrder inOrder = inOrder(securityAuditService, loginFailureCounter);
+    inOrder.verify(securityAuditService).recordLoginFailed("testuser");
+    inOrder.verify(loginFailureCounter).recordFailure("testuser");
+    verify(tokenLifecycleService, never()).issue(any(), any());
+  }
+
+  @Test
+  @DisplayName("login fails closed before failure counter when LOGIN_FAILED audit cannot be saved")
+  void login_throwsAuditStoreUnavailable_whenLoginFailedAuditFails() {
+    User user = user("testuser", true);
+    given(userRepository.findByUsername("testuser")).willReturn(Optional.of(user));
+    given(authenticationManager.authenticate(any()))
+        .willThrow(new BadCredentialsException("Bad credentials"));
+    doThrow(new AuthFailureException(
+        AuthFailureCode.AUDIT_STORE_UNAVAILABLE,
+        "Authentication service is temporarily unavailable."))
+        .when(securityAuditService)
+        .recordLoginFailed("testuser");
+
+    assertThatThrownBy(() ->
+        authServiceImpl.login(createLoginRequest("testuser", "wrong-password")))
+        .isInstanceOfSatisfying(AuthFailureException.class, failure ->
+            assertThat(failure.getCode()).isEqualTo(AuthFailureCode.AUDIT_STORE_UNAVAILABLE));
+
+    verify(loginFailureCounter, never()).recordFailure(any());
     verify(userRepository, never()).save(any());
     verify(tokenLifecycleService, never()).issue(any(), any());
   }
