@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import io.jsonwebtoken.Claims;
@@ -18,6 +19,7 @@ import org.example.domain.entity.User;
 import org.example.dto.response.TokenResponseDto;
 import org.example.repository.TokenRedisRepository;
 import org.example.repository.UserRepository;
+import org.example.security.audit.SecurityAuditService;
 import org.example.security.failure.AuthFailureCode;
 import org.example.security.failure.AuthFailureException;
 import org.example.security.jwt.JwtTokenProvider;
@@ -41,6 +43,9 @@ class TokenLifecycleServiceImplTest {
 
   @Mock
   private UserRepository userRepository;
+
+  @Mock
+  private SecurityAuditService securityAuditService;
 
   @Spy
   private RedisFailurePolicy redisFailurePolicy = new RedisFailurePolicy();
@@ -95,6 +100,40 @@ class TokenLifecycleServiceImplTest {
     assertThatThrownBy(() -> tokenLifecycleService.rotate("old-refresh-token"))
         .isInstanceOfSatisfying(AuthFailureException.class, failure ->
             assertThat(failure.getCode()).isEqualTo(AuthFailureCode.REFRESH_TOKEN_REUSED));
+    verify(securityAuditService).recordRefreshTokenReused("testuser");
+  }
+
+  @Test
+  @DisplayName("rotate records REFRESH_TOKEN_REUSED audit before rejecting reused Refresh Token")
+  void rotate_recordsAuditAndRejects_whenRefreshTokenIsReused() {
+    given(jwtTokenProvider.parseClaims("old-refresh-token"))
+        .willReturn(claims("testuser"));
+    given(tokenRedisRepository.findRefreshToken("testuser"))
+        .willReturn(Optional.of("current-refresh-token"));
+
+    assertThatThrownBy(() -> tokenLifecycleService.rotate("old-refresh-token"))
+        .isInstanceOfSatisfying(AuthFailureException.class, failure ->
+            assertThat(failure.getCode()).isEqualTo(AuthFailureCode.REFRESH_TOKEN_REUSED));
+
+    verify(securityAuditService).recordRefreshTokenReused("testuser");
+  }
+
+  @Test
+  @DisplayName("rotate fails closed when REFRESH_TOKEN_REUSED audit cannot be saved")
+  void rotate_throwsAuditStoreUnavailable_whenRefreshReuseAuditFails() {
+    given(jwtTokenProvider.parseClaims("old-refresh-token"))
+        .willReturn(claims("testuser"));
+    given(tokenRedisRepository.findRefreshToken("testuser"))
+        .willReturn(Optional.of("current-refresh-token"));
+    doThrow(new AuthFailureException(
+        AuthFailureCode.AUDIT_STORE_UNAVAILABLE,
+        "Authentication service is temporarily unavailable."))
+        .when(securityAuditService)
+        .recordRefreshTokenReused("testuser");
+
+    assertThatThrownBy(() -> tokenLifecycleService.rotate("old-refresh-token"))
+        .isInstanceOfSatisfying(AuthFailureException.class, failure ->
+            assertThat(failure.getCode()).isEqualTo(AuthFailureCode.AUDIT_STORE_UNAVAILABLE));
   }
 
   @Test
@@ -108,6 +147,7 @@ class TokenLifecycleServiceImplTest {
     assertThatThrownBy(() -> tokenLifecycleService.rotate("missing-refresh-token"))
         .isInstanceOfSatisfying(AuthFailureException.class, failure ->
             assertThat(failure.getCode()).isEqualTo(AuthFailureCode.REFRESH_TOKEN_INVALID));
+    verify(securityAuditService, never()).recordRefreshTokenReused(anyString());
   }
 
   @Test

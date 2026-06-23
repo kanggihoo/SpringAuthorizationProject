@@ -239,6 +239,23 @@ class AuthControllerTest {
                     .extractingPath("$.code")
                     .isEqualTo("USER_DISABLED");
         }
+
+        @Test
+        @DisplayName("감사 저장소를 사용할 수 없으면 AUDIT_STORE_UNAVAILABLE 코드와 503을 반환한다")
+        void returns503WithAuditStoreUnavailableCode_whenAuditStoreUnavailableOnLogin() {
+            given(authService.login(any()))
+                    .willThrow(new AuthFailureException(
+                            AuthFailureCode.AUDIT_STORE_UNAVAILABLE,
+                            "Authentication service is temporarily unavailable."));
+
+            assertThat(mvc.post().uri("/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(writeJson(loginRequest("testuser", "wrong-password"))))
+                    .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("AUDIT_STORE_UNAVAILABLE");
+        }
     }
 
     // ======================== POST /refresh ========================
@@ -283,6 +300,22 @@ class AuthControllerTest {
                     .bodyJson()
                     .convertTo(TokenResponseDto.class)
                     .satisfies(response -> assertThat(response.getAccessToken()).isEqualTo("new-access-token"));
+        }
+
+        @Test
+        @DisplayName("refresh 감사 저장소를 사용할 수 없으면 AUDIT_STORE_UNAVAILABLE 코드와 503을 반환한다")
+        void returns503WithAuditStoreUnavailableCode_whenAuditStoreUnavailableOnRefresh() {
+            given(authService.refresh(anyString()))
+                    .willThrow(new AuthFailureException(
+                            AuthFailureCode.AUDIT_STORE_UNAVAILABLE,
+                            "Authentication service is temporarily unavailable."));
+
+            assertThat(mvc.post().uri("/refresh")
+                    .cookie(new Cookie("Refresh-Token", "old-refresh-token")))
+                    .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .bodyJson()
+                    .extractingPath("$.code")
+                    .isEqualTo("AUDIT_STORE_UNAVAILABLE");
         }
 
         @Test

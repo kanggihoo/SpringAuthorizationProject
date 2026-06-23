@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.example.domain.entity.User;
 import org.example.dto.response.TokenResponseDto;
+import org.example.security.audit.SecurityAuditService;
 import org.example.repository.TokenRedisRepository;
 import org.example.repository.UserRepository;
 import org.example.security.failure.AuthFailureCode;
@@ -22,6 +23,7 @@ public class TokenLifecycleServiceImpl implements TokenLifecycleService {
   private final JwtTokenProvider jwtTokenProvider;
   private final TokenRedisRepository tokenRedisRepository;
   private final UserRepository userRepository;
+  private final SecurityAuditService securityAuditService;
   private final RedisFailurePolicy redisFailurePolicy;
 
   @Override
@@ -48,6 +50,7 @@ public class TokenLifecycleServiceImpl implements TokenLifecycleService {
             "유효하지 않은 Refresh Token입니다. (만료 또는 미존재)"));
 
     if (!storedToken.equals(refreshToken)) {
+      securityAuditService.recordRefreshTokenReused(jwtSubject);
       throw new AuthFailureException(
           AuthFailureCode.REFRESH_TOKEN_REUSED,
           "Refresh Token이 일치하지 않습니다. (탈취 의심)");
