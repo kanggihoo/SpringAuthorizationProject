@@ -14,12 +14,12 @@ We decided to separate Token Delivery from Token Store. Token Store owns server-
 
 **OAuth2 Delivery**
 
-The current OAuth2 redirect still uses a URL fragment that contains the Access Token. This is an interim delivery mechanism and should be replaced with One-time Code Exchange:
+The current OAuth2 redirect still uses a URL fragment that contains the Access Token. This is an interim delivery mechanism and should be replaced with Refresh Bootstrap Delivery:
 
 - OAuth2 success sets the Refresh Token HttpOnly cookie.
-- OAuth2 success redirects to the frontend with a short-lived one-time code, not an Access Token.
-- The frontend exchanges that code through a backend endpoint.
-- The backend consumes the code once and returns the Access Token in the response body.
+- OAuth2 success redirects to the frontend root `/` without an Access Token, Refresh Token, or temporary exchange code in the URL.
+- The frontend AuthProvider/AppBootstrap calls `POST /refresh` when the React app loads.
+- The backend validates the Refresh Token cookie, rotates it, and returns a new Access Token in the response body.
 - The frontend stores that Access Token only in memory.
 
 **Consequences**
@@ -27,7 +27,7 @@ The current OAuth2 redirect still uses a URL fragment that contains the Access T
 - A page reload loses the in-memory Access Token by design.
 - The browser session can recover by calling `POST /refresh` because the Refresh Token cookie is HttpOnly and sent by the browser.
 - XSS can still issue requests as the current page, but it cannot directly read a persisted Access Token from browser storage.
-- Token Delivery cookie attributes and bearer-token extraction should move behind a Token Delivery Module before changing OAuth2 to One-time Code Exchange.
+- Token Delivery cookie attributes and bearer-token extraction should move behind a Token Delivery Module before changing OAuth2 to Refresh Bootstrap Delivery.
 - CSRF policy must be revisited before moving Access Tokens into cookies; the current policy keeps Access Tokens in the `Authorization` header.
 
 **Implementation Notes**
@@ -35,4 +35,4 @@ The current OAuth2 redirect still uses a URL fragment that contains the Access T
 - `TokenDeliveryService` owns Refresh Token cookie creation, expiration, and reading.
 - `TokenDeliveryService` owns Bearer Access Token extraction from the `Authorization` header.
 - `AuthController`, `OAuth2AuthenticationSuccessHandler`, and `JwtAuthenticationFilter` use `TokenDeliveryService` instead of duplicating delivery policy.
-- The OAuth2 URL fragment delivery remains unchanged until the One-time Code Exchange work starts.
+- The OAuth2 URL fragment delivery remains unchanged until the Refresh Bootstrap Delivery work starts.

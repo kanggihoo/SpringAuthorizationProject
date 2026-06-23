@@ -28,4 +28,4 @@ We decided to place Local User and OAuth2 User principal adaptation behind an Au
 - Let the existing Local and OAuth2 principal adapters satisfy the Authenticated User interface before adding more abstraction.
 - Introduce a loader or resolver such as `AuthenticatedUserService.loadActiveUserByJwtSubject(...)` for Access Token authentication.
 - The loader must reject disabled or locked Users before a Spring Security Authentication is written to the SecurityContext.
-- Keep One-time Code Exchange and Redis Failure Policy outside this ADR.
+- Keep Refresh Bootstrap Delivery and Redis Failure Policy outside this ADR.
